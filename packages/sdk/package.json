@@ -1,0 +1,92 @@
+{
+  "name": "@arc-nano-kit/sdk",
+  "version": "0.1.0-alpha",
+  "description": "Usage-based billing and paid API middleware for Arc — powered by Circle Nanopayments & x402",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./middleware": {
+      "types": "./dist/middleware/index.d.ts",
+      "import": "./dist/middleware/index.js"
+    },
+    "./client": {
+      "types": "./dist/client/index.d.ts",
+      "import": "./dist/client/index.js"
+    },
+    "./billing": {
+      "types": "./dist/billing/index.d.ts",
+      "import": "./dist/billing/index.js"
+    },
+    "./gateway": {
+      "types": "./dist/gateway/index.d.ts",
+      "import": "./dist/gateway/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "clean": "rm -rf dist",
+    "test": "node --test src/**/*.test.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": [
+    "arc",
+    "circle",
+    "usdc",
+    "nanopayments",
+    "x402",
+    "billing",
+    "middleware",
+    "paid-api",
+    "micropayments",
+    "usage-based-billing"
+  ],
+  "author": "horn111",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/horn111/arc-nano-kit.git",
+    "directory": "packages/sdk"
+  },
+  "homepage": "https://github.com/horn111/arc-nano-kit#readme",
+  "bugs": {
+    "url": "https://github.com/horn111/arc-nano-kit/issues"
+  },
+  "dependencies": {
+    "viem": "^2.21.0"
+  },
+  "peerDependencies": {
+    "@circle-fin/x402-batching": ">=0.1.0",
+    "@x402/core": ">=0.1.0",
+    "express": ">=4.0.0",
+    "next": ">=14.0.0"
+  },
+  "peerDependenciesMeta": {
+    "express": {
+      "optional": true
+    },
+    "next": {
+      "optional": true
+    },
+    "@circle-fin/x402-batching": {
+      "optional": true
+    },
+    "@x402/core": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.0",
+    "typescript": "^5.6.0"
+  }
+}

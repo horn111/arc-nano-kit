@@ -1,0 +1,35 @@
+{
+  "name": "arc-nano-kit",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Open-source kit for usage-based billing and paid APIs on Arc",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/horn111/arc-nano-kit.git"
+  },
+  "author": "horn111",
+  "license": "Apache-2.0",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces --if-present",
+    "dev": "npm run dev --workspace=apps/demo",
+    "lint": "eslint . --ext .ts,.tsx",
+    "typecheck": "tsc --noEmit --project packages/sdk/tsconfig.json",
+    "test": "npm run test --workspaces --if-present",
+    "clean": "npm run clean --workspaces --if-present && rm -rf node_modules",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md}\""
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "eslint": "^9.0.0",
+    "prettier": "^3.3.0",
+    "typescript": "^5.6.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
