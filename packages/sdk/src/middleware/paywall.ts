@@ -3,7 +3,7 @@
  */
 
 import type { EndpointConfig, PaymentPayload, PaymentRequirements } from '../types.js';
-import { DEFAULTS, HTTP_402, USDC_DECIMALS, X402_HEADER, PAYMENT_REQUIRED_HEADER } from '../constants.js';
+import { DEFAULTS, USDC_DECIMALS, X402_HEADER } from '../constants.js';
 
 /** Configuration for the paywall middleware */
 export interface PaywallConfig extends EndpointConfig {

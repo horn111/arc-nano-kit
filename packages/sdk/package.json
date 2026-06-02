@@ -36,7 +36,7 @@
     "build": "tsc",
     "dev": "tsc --watch",
     "clean": "rm -rf dist",
-    "test": "node --test src/**/*.test.ts",
+    "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },
   "keywords": [
@@ -66,8 +66,6 @@
     "viem": "^2.21.0"
   },
   "peerDependencies": {
-    "@circle-fin/x402-batching": ">=0.1.0",
-    "@x402/core": ">=0.1.0",
     "express": ">=4.0.0",
     "next": ">=14.0.0"
   },
@@ -77,16 +75,11 @@
     },
     "next": {
       "optional": true
-    },
-    "@circle-fin/x402-batching": {
-      "optional": true
-    },
-    "@x402/core": {
-      "optional": true
     }
   },
   "devDependencies": {
     "@types/express": "^5.0.0",
-    "typescript": "^5.6.0"
+    "typescript": "^5.6.0",
+    "vitest": "^1.6.0"
   }
 }

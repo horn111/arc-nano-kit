@@ -11,8 +11,6 @@
   },
   "dependencies": {
     "@arc-nano-kit/sdk": "*",
-    "@circle-fin/x402-batching": "^0.1.0",
-    "@x402/core": "^0.1.0",
     "next": "^15.0.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",

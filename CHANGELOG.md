@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0-alpha] - 2026-06-02
+
+### Added
+
+- `create-arc-nano-kit` CLI tool for scaffolding projects (`npx create-arc-nano-kit`)
+- Interactive prompts for framework (Express/Next.js) and pricing model
+
 ## [0.1.0-alpha] - 2025-05-23
 
 ### Added

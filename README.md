@@ -36,6 +36,7 @@ We turn these primitives from docs and quickstarts into **drop-in middleware** f
 | Feature | Description | Status |
 |---------|-------------|--------|
 | **Paywall Middleware** | One-line Express/Next.js middleware for x402-protected endpoints | ✅ Ready |
+| **CLI Generator** | Scaffold new paid APIs in 30 seconds via `npx create-arc-nano-kit` | ✅ Ready |
 | **Buyer SDK** | TypeScript client with automatic `402 → sign → retry` flow | ✅ Ready |
 | **Billing Engine** | Per-request, per-second, per-job pricing models | ✅ Ready |
 | **Usage Metering** | Track consumption per buyer, per endpoint | ✅ Ready |
@@ -46,23 +47,17 @@ We turn these primitives from docs and quickstarts into **drop-in middleware** f
 
 ## 🚀 Quickstart
 
-### 60-Second Setup
+### Scaffold a New Project (Recommended)
+
+The fastest way to get started is with our interactive CLI:
 
 ```bash
-# Clone and install
-git clone https://github.com/horn111/arc-nano-kit.git
-cd arc-nano-kit && npm install
-
-# Configure (edit with your wallet keys)
-cp apps/demo/.env.example apps/demo/.env.local
-
-# Launch the demo
-npm run dev
+npx create-arc-nano-kit
 ```
 
-Open `http://localhost:3000` → try the paywalled endpoints.
+This will prompt you for your preferred framework (Express or Next.js) and pricing model, then generate a fully configured, ready-to-run project.
 
-### Paywall Your Own API
+### Manual Setup
 
 **Express.js** — 3 lines to add usage-based billing:
 

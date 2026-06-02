@@ -21,9 +21,9 @@
  * ```
  */
 
-import { createWalletClient, http, type WalletClient, type Account } from 'viem';
+import { type Account } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
-import type { PaymentRequirements, PaymentPayload, PaymentResult } from '../types.js';
+import type { PaymentRequirements, PaymentPayload } from '../types.js';
 import { ARC_TESTNET, DEFAULTS, HTTP_402, USDC_DECIMALS, X402_HEADER, PAYMENT_REQUIRED_HEADER } from '../constants.js';
 
 /** Configuration for the BuyerClient */
@@ -64,16 +64,12 @@ export interface PaidResponse<T = unknown> {
  */
 export class BuyerClient {
   private readonly account: Account;
-  private readonly rpcUrl: string;
   private readonly chainId: number;
-  private readonly maxRetries: number;
   private readonly fetchFn: typeof globalThis.fetch;
 
   constructor(config: BuyerClientConfig) {
     this.account = privateKeyToAccount(config.privateKey);
-    this.rpcUrl = config.rpcUrl ?? ARC_TESTNET.rpcUrl;
     this.chainId = config.chainId ?? ARC_TESTNET.chainId;
-    this.maxRetries = config.maxRetries ?? 1;
     this.fetchFn = config.fetch ?? globalThis.fetch;
   }
 
@@ -186,6 +182,9 @@ export class BuyerClient {
     };
 
     // Sign the authorization using EIP-712 typed data
+    if (!this.account.signTypedData) {
+      throw new Error('Account does not support signTypedData');
+    }
     const signature = await this.account.signTypedData({
       domain: {
         name: 'USD Coin',
