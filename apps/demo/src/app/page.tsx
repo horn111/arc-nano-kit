@@ -1,10 +1,49 @@
+'use client';
+
+import { useState } from 'react';
+
 export default function HomePage() {
+  const [result, setResult] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
+
+  const testEndpoint = async (url: string) => {
+    setLoading(true);
+    setResult(null);
+    try {
+      const startTime = Date.now();
+      const res = await fetch(url);
+      const data = await res.json();
+      const endTime = Date.now();
+
+      const paymentRequired = res.headers.get('x-payment-required');
+      let requirements = null;
+      if (paymentRequired) {
+        try {
+          requirements = JSON.parse(atob(paymentRequired));
+        } catch (e) {}
+      }
+
+      setResult({
+        status: res.status,
+        statusText: res.statusText,
+        timeMs: endTime - startTime,
+        data,
+        requirements,
+      });
+    } catch (error: any) {
+      setResult({ error: error.message });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <main
       style={{
         maxWidth: '900px',
         margin: '0 auto',
         padding: '60px 24px',
+        fontFamily: 'system-ui, sans-serif',
       }}
     >
       {/* Hero */}
@@ -70,24 +109,6 @@ export default function HomePage() {
           >
             ★ GitHub
           </a>
-          <a
-            href="https://github.com/horn111/arc-nano-kit/tree/main/docs/getting-started.md"
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '8px',
-              padding: '12px 24px',
-              borderRadius: '10px',
-              border: '1px solid rgba(99,102,241,0.3)',
-              color: '#c7d2fe',
-              textDecoration: 'none',
-              fontWeight: 600,
-              fontSize: '15px',
-              background: 'transparent',
-            }}
-          >
-            Get Started →
-          </a>
         </div>
       </div>
 
@@ -100,7 +121,7 @@ export default function HomePage() {
           color: '#e4e4e7',
         }}
       >
-        Paywalled Endpoints
+        Paywalled Endpoints (Try it out!)
       </h2>
 
       <div style={{ display: 'grid', gap: '16px' }}>
@@ -111,26 +132,48 @@ export default function HomePage() {
             borderRadius: '12px',
             border: '1px solid rgba(99,102,241,0.2)',
             background: 'rgba(15,15,25,0.8)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '16px',
           }}
         >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-            <code style={{ fontSize: '15px', color: '#c7d2fe' }}>GET /api/joke</code>
-            <span
-              style={{
-                padding: '4px 10px',
-                borderRadius: '6px',
-                background: 'rgba(34,197,94,0.15)',
-                color: '#4ade80',
-                fontSize: '13px',
-                fontWeight: 600,
-              }}
-            >
-              $0.001 USDC
-            </span>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <code style={{ fontSize: '15px', color: '#c7d2fe', display: 'block', marginBottom: '8px' }}>GET /api/joke</code>
+              <p style={{ margin: 0, color: '#71717a', fontSize: '14px' }}>
+                Get a random developer joke. Demonstrates per-request billing.
+              </p>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+              <span
+                style={{
+                  padding: '4px 10px',
+                  borderRadius: '6px',
+                  background: 'rgba(34,197,94,0.15)',
+                  color: '#4ade80',
+                  fontSize: '13px',
+                  fontWeight: 600,
+                }}
+              >
+                $0.001 USDC
+              </span>
+              <button
+                onClick={() => testEndpoint('/api/joke')}
+                disabled={loading}
+                style={{
+                  padding: '8px 16px',
+                  borderRadius: '8px',
+                  background: '#6366f1',
+                  color: '#fff',
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontWeight: 600,
+                }}
+              >
+                Test Endpoint
+              </button>
+            </div>
           </div>
-          <p style={{ margin: 0, color: '#71717a', fontSize: '14px' }}>
-            Get a random developer joke. Demonstrates per-request billing.
-          </p>
         </div>
 
         {/* Weather Endpoint */}
@@ -140,106 +183,99 @@ export default function HomePage() {
             borderRadius: '12px',
             border: '1px solid rgba(99,102,241,0.2)',
             background: 'rgba(15,15,25,0.8)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '16px',
           }}
         >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-            <code style={{ fontSize: '15px', color: '#c7d2fe' }}>GET /api/weather?city=NYC</code>
-            <span
-              style={{
-                padding: '4px 10px',
-                borderRadius: '6px',
-                background: 'rgba(34,197,94,0.15)',
-                color: '#4ade80',
-                fontSize: '13px',
-                fontWeight: 600,
-              }}
-            >
-              $0.005 USDC
-            </span>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <code style={{ fontSize: '15px', color: '#c7d2fe', display: 'block', marginBottom: '8px' }}>GET /api/weather?city=NYC</code>
+              <p style={{ margin: 0, color: '#71717a', fontSize: '14px' }}>
+                Get weather data for a city. Demonstrates higher-value per-request billing.
+              </p>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+              <span
+                style={{
+                  padding: '4px 10px',
+                  borderRadius: '6px',
+                  background: 'rgba(34,197,94,0.15)',
+                  color: '#4ade80',
+                  fontSize: '13px',
+                  fontWeight: 600,
+                }}
+              >
+                $0.005 USDC
+              </span>
+              <button
+                onClick={() => testEndpoint('/api/weather?city=NYC')}
+                disabled={loading}
+                style={{
+                  padding: '8px 16px',
+                  borderRadius: '8px',
+                  background: '#6366f1',
+                  color: '#fff',
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontWeight: 600,
+                }}
+              >
+                Test Endpoint
+              </button>
+            </div>
           </div>
-          <p style={{ margin: 0, color: '#71717a', fontSize: '14px' }}>
-            Get weather data for a city. Demonstrates higher-value per-request billing.
-          </p>
         </div>
       </div>
 
-      {/* How It Works */}
-      <h2
-        style={{
-          fontSize: '24px',
-          fontWeight: 700,
-          margin: '48px 0 24px',
-          color: '#e4e4e7',
-        }}
-      >
-        How It Works
-      </h2>
-
-      <div style={{ display: 'grid', gap: '16px', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
-        {[
-          { step: '1', title: 'Request', desc: 'Client calls a protected API endpoint' },
-          { step: '2', title: '402 Response', desc: 'Server returns payment requirements' },
-          { step: '3', title: 'Sign & Pay', desc: 'Client signs EIP-3009 authorization' },
-          { step: '4', title: 'Access', desc: 'Server verifies and returns data' },
-        ].map((item) => (
+      {/* Result Console */}
+      {result && (
+        <div style={{ marginTop: '24px' }}>
+          <h3 style={{ fontSize: '16px', color: '#e4e4e7', marginBottom: '12px' }}>Response Console</h3>
           <div
-            key={item.step}
             style={{
-              padding: '20px',
-              borderRadius: '12px',
-              border: '1px solid rgba(99,102,241,0.15)',
-              background: 'rgba(15,15,25,0.6)',
-              textAlign: 'center',
+              padding: '16px',
+              borderRadius: '8px',
+              background: '#09090b',
+              border: `1px solid ${result.status === 402 ? 'rgba(234,179,8,0.5)' : 'rgba(99,102,241,0.3)'}`,
+              overflowX: 'auto',
             }}
           >
-            <div
-              style={{
-                width: '36px',
-                height: '36px',
-                borderRadius: '50%',
-                background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                margin: '0 auto 12px',
-                fontWeight: 700,
-                fontSize: '14px',
-              }}
-            >
-              {item.step}
+            <div style={{ display: 'flex', gap: '12px', marginBottom: '12px', fontSize: '13px' }}>
+              <span style={{ color: result.status === 402 ? '#eab308' : '#4ade80', fontWeight: 'bold' }}>
+                HTTP {result.status} {result.statusText}
+              </span>
+              <span style={{ color: '#71717a' }}>{result.timeMs}ms</span>
             </div>
-            <div style={{ fontWeight: 600, marginBottom: '4px', fontSize: '15px' }}>{item.title}</div>
-            <div style={{ color: '#71717a', fontSize: '13px' }}>{item.desc}</div>
-          </div>
-        ))}
-      </div>
+            
+            {result.requirements && (
+              <div style={{ marginBottom: '12px' }}>
+                <span style={{ color: '#a1a1aa', fontSize: '12px', display: 'block', marginBottom: '4px' }}>
+                  // Parsed X-Payment-Required header
+                </span>
+                <pre style={{ margin: 0, color: '#c7d2fe', fontSize: '13px' }}>
+                  {JSON.stringify(result.requirements, null, 2)}
+                </pre>
+              </div>
+            )}
 
-      {/* Footer */}
-      <footer
-        style={{
-          marginTop: '80px',
-          paddingTop: '24px',
-          borderTop: '1px solid rgba(99,102,241,0.15)',
-          textAlign: 'center',
-          color: '#52525b',
-          fontSize: '13px',
-        }}
-      >
-        <p>Built on Arc · Powered by Circle Nanopayments · x402 Protocol</p>
-        <p style={{ marginTop: '8px' }}>
-          <a href="https://github.com/horn111/arc-nano-kit" style={{ color: '#6366f1', textDecoration: 'none' }}>
-            GitHub
-          </a>
-          {' · '}
-          <a href="https://arc.network" style={{ color: '#6366f1', textDecoration: 'none' }}>
-            Arc Network
-          </a>
-          {' · '}
-          <a href="https://x402.org" style={{ color: '#6366f1', textDecoration: 'none' }}>
-            x402.org
-          </a>
-        </p>
-      </footer>
+            <div>
+              <span style={{ color: '#a1a1aa', fontSize: '12px', display: 'block', marginBottom: '4px' }}>
+                // Response Body
+              </span>
+              <pre style={{ margin: 0, color: '#e4e4e7', fontSize: '13px' }}>
+                {JSON.stringify(result.data, null, 2)}
+              </pre>
+            </div>
+          </div>
+          
+          {result.status === 402 && (
+            <p style={{ fontSize: '14px', color: '#a1a1aa', marginTop: '16px', padding: '12px', background: 'rgba(234,179,8,0.1)', borderRadius: '8px', border: '1px solid rgba(234,179,8,0.2)' }}>
+              ⚠️ <strong>Payment Required:</strong> The server successfully blocked the request. To view the data, your client needs to sign the authorization payload using our Buyer SDK.
+            </p>
+          )}
+        </div>
+      )}
     </main>
   );
 }
