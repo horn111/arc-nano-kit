@@ -2,7 +2,8 @@
   <img src="https://img.shields.io/badge/Arc-Testnet-7c3aed?style=for-the-badge&logo=data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48Y2lyY2xlIGN4PSIxMiIgY3k9IjEyIiByPSIxMCIgZmlsbD0id2hpdGUiLz48L3N2Zz4=" alt="Arc Testnet" />
   <img src="https://img.shields.io/badge/USDC-Powered-2775ca?style=for-the-badge&logo=circle&logoColor=white" alt="USDC Powered" />
   <img src="https://img.shields.io/badge/x402-Protocol-000000?style=for-the-badge" alt="x402 Protocol" />
-  <img src="https://img.shields.io/badge/License-Apache_2.0-blue?style=for-the-badge" alt="License" />
+  <a href="https://opensource.org/licenses/Apache-2.0"><img src="https://img.shields.io/badge/License-Apache_2.0-blue?style=for-the-badge" alt="License" /></a>
+  <a href="https://arc-nano-kit-demo.vercel.app"><img src="https://img.shields.io/badge/Live-Demo-success?style=for-the-badge" alt="Live Demo" /></a>
   <img src="https://img.shields.io/badge/TypeScript-5.6+-3178c6?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript" />
 </p>
 
