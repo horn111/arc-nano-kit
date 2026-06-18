@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Arc Receipts MVP with invoice memos, receipt matching, in-memory ledger, and signed webhook helpers.
+
 ## [0.2.0-alpha] - 2026-06-02
 
 ### Added

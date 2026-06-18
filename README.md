@@ -10,7 +10,7 @@
 <h1 align="center">arc-nano-kit</h1>
 
 <p align="center">
-  <strong>Open-source middleware that turns Circle Nanopayments into production-ready<br/>usage-based billing for APIs, AI agents, and data services on Arc.</strong>
+  <strong>Open-source payment ops toolkit for Arc: paid APIs, usage billing,<br/>invoices, receipts, signed webhooks, and stablecoin reconciliation.</strong>
 </p>
 
 <p align="center">
@@ -26,11 +26,11 @@
 
 ## The Problem
 
-Circle has shipped powerful payment primitives — **Nanopayments**, **Gateway batched settlement**, and the **x402 protocol** — but there's no production-ready, Arc-first open-source package with great DX that lets builders go from `npm install` to a working paid API in minutes.
+Circle has shipped powerful payment primitives — **Nanopayments**, **Gateway batched settlement**, **transaction memos**, **App Kits**, and the **x402 protocol** — but builders still need an Arc-first open-source package with great DX that turns those primitives into shippable payment workflows.
 
 **arc-nano-kit bridges that gap.**
 
-We turn these primitives from docs and quickstarts into **drop-in middleware** for Express, Next.js, and Fastify, complete with a billing engine, buyer SDK, and usage dashboard.
+We turn these primitives from docs and quickstarts into **drop-in middleware and payment ops utilities** for Express, Next.js, and Fastify, complete with a billing engine, buyer SDK, invoices, receipts, signed webhooks, and usage tracking.
 
 ## ✨ Features
 
@@ -42,6 +42,7 @@ We turn these primitives from docs and quickstarts into **drop-in middleware** f
 | **Billing Engine** | Per-request, per-second, per-job pricing models | ✅ Ready |
 | **Usage Metering** | Track consumption per buyer, per endpoint | ✅ Ready |
 | **Gateway Client** | Unified balance monitoring, deposit tracking | ✅ Ready |
+| **Arc Receipts** | Invoices, transaction memos, receipts, and signed webhooks | ✅ Ready |
 | **Demo App** | Next.js app with live paywalled API endpoints | ✅ Ready |
 | **Dashboard** | Real-time analytics and revenue tracking | 🔜 Phase 2 |
 | **Multi-Framework** | Fastify, Hono, Python, Go adapters | 🔜 Phase 3 |
@@ -103,6 +104,37 @@ const buyer = new BuyerClient({
 const response = await buyer.request('https://api.example.com/api/premium/data');
 console.log(response.data);    // { data: 'Premium content' }
 console.log(response.payment); // { amount: '0.001', network: 'arc-testnet' }
+```
+
+### Create an Invoice and Receipt
+
+```typescript
+import { ReceiptLedger, signWebhookEvent } from '@arc-nano-kit/sdk/receipts';
+
+const ledger = new ReceiptLedger();
+
+const invoice = ledger.createInvoice({
+  id: 'inv_pro_plan_123',
+  amount: '19.00',
+  currency: 'USDC',
+  payTo: '0x1111111111111111111111111111111111111111',
+  description: 'Pro plan subscription',
+});
+
+// Later, after your app observes the Arc payment:
+const receipt = ledger.recordPayment(invoice.id, {
+  to: invoice.payTo,
+  amount: '19.00',
+  memo: invoice.memo,
+  txHash: '0xabc' as `0x${string}`,
+});
+
+const paidEvent = ledger.listWebhookEvents().at(-1)!;
+const signature = signWebhookEvent(paidEvent, process.env.ARC_WEBHOOK_SECRET!);
+
+console.log(invoice.memo);      // arc-nano-kit:invoice:v1:inv_pro_plan_123
+console.log(receipt.status);    // paid
+console.log(signature.header);  // t=...,v1=...
 ```
 
 ## 🏗️ Architecture
@@ -180,6 +212,7 @@ arc-nano-kit/
 │       │   ├── client/          # Buyer SDK (auto 402 flow)
 │       │   ├── billing/         # Usage metering & pricing plans
 │       │   ├── gateway/         # Circle Gateway client
+│       │   ├── receipts/        # Invoices, memos, receipts, webhooks
 │       │   ├── types.ts         # Shared TypeScript types
 │       │   └── constants.ts     # Arc chain config
 │       └── package.json
@@ -261,6 +294,18 @@ const balance = await gateway.getBalance();
 console.log(`Balance: ${balance.available} USDC`);
 ```
 
+### Receipts (`@arc-nano-kit/sdk/receipts`)
+
+Invoice, transaction memo, receipt, and signed webhook helpers for Arc payment workflows:
+
+```typescript
+import {
+  ReceiptLedger,
+  createInvoiceMemo,
+  verifyWebhookSignature,
+} from '@arc-nano-kit/sdk/receipts';
+```
+
 ## 🌐 Why Arc?
 
 Arc is Circle's Layer 1 blockchain — purpose-built for stablecoin-native finance. Here's why it's the ideal foundation for usage-based billing:
@@ -326,7 +371,7 @@ arc-nano-kit leverages the full Circle stack:
 | Phase | Timeline | Key Deliverables | Status |
 |-------|----------|------------------|--------|
 | **Foundation** | Weeks 1-2 | SDK middleware, buyer client, billing engine, demo app | ✅ In Progress |
-| **Production** | Weeks 3-4 | Usage dashboard, Gateway helpers, CLI scaffolding | 🔜 Next |
+| **Production** | Weeks 3-4 | Arc Receipts, usage dashboard, Gateway helpers, CLI scaffolding | 🔜 Next |
 | **Ecosystem** | Months 2-3 | Multi-framework, agent commerce, Arc Mainnet | 📋 Planned |
 
 See [ROADMAP.md](ROADMAP.md) for the detailed feature roadmap.

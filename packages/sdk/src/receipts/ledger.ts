@@ -1,0 +1,135 @@
+/**
+ * In-memory invoice and receipt ledger.
+ */
+
+import { createInvoice, createReceipt, isInvoiceExpired } from './invoice.js';
+import type {
+  ArcInvoice,
+  ArcReceipt,
+  CreateInvoiceInput,
+  InvoiceStatus,
+  ObservedPayment,
+  WebhookEvent,
+} from './types.js';
+import { createWebhookEvent } from './webhooks.js';
+
+export interface LedgerFilter {
+  status?: InvoiceStatus;
+  customerId?: string;
+}
+
+export class ReceiptLedger {
+  private readonly invoices = new Map<string, ArcInvoice>();
+  private readonly receipts = new Map<string, ArcReceipt>();
+  private readonly events: WebhookEvent[] = [];
+
+  createInvoice(input: CreateInvoiceInput): ArcInvoice {
+    const invoice = createInvoice(input);
+    this.addInvoice(invoice);
+    this.events.push(createWebhookEvent('invoice.created', { invoice }));
+    return invoice;
+  }
+
+  addInvoice(invoice: ArcInvoice): void {
+    if (this.invoices.has(invoice.id)) {
+      throw new Error(`Invoice already exists: ${invoice.id}`);
+    }
+
+    this.invoices.set(invoice.id, invoice);
+  }
+
+  getInvoice(id: string): ArcInvoice | undefined {
+    return this.invoices.get(id);
+  }
+
+  listInvoices(filter?: LedgerFilter): ArcInvoice[] {
+    return [...this.invoices.values()].filter((invoice) => {
+      if (filter?.status && invoice.status !== filter.status) {
+        return false;
+      }
+
+      if (filter?.customerId && invoice.customerId !== filter.customerId) {
+        return false;
+      }
+
+      return true;
+    });
+  }
+
+  recordPayment(invoiceId: string, payment: ObservedPayment): ArcReceipt {
+    const invoice = this.requireInvoice(invoiceId);
+    const observedInvoice = this.updateInvoice(invoice.id, { status: 'observed' });
+    this.events.push(createWebhookEvent('invoice.observed', { invoice: observedInvoice, payment }));
+
+    const receipt = createReceipt(observedInvoice, payment);
+    this.receipts.set(receipt.id, receipt);
+    const paidInvoice = this.updateInvoice(invoice.id, { status: 'paid' });
+    this.events.push(createWebhookEvent('invoice.paid', { invoice: paidInvoice, receipt }));
+    return receipt;
+  }
+
+  markExpired(invoiceId: string, now = Date.now()): ArcInvoice {
+    const invoice = this.requireInvoice(invoiceId);
+
+    if (!isInvoiceExpired(invoice, now)) {
+      throw new Error(`Invoice is not expired: ${invoiceId}`);
+    }
+
+    const expiredInvoice = this.updateInvoice(invoiceId, { status: 'expired' });
+    this.events.push(createWebhookEvent('invoice.expired', { invoice: expiredInvoice }));
+    return expiredInvoice;
+  }
+
+  markRefunded(invoiceId: string, refund: { txHash?: `0x${string}`; refundedAt?: number } = {}): ArcReceipt {
+    const invoice = this.requireInvoice(invoiceId);
+    const receipt = [...this.receipts.values()].find((item) => item.invoiceId === invoiceId);
+
+    if (!receipt) {
+      throw new Error(`Cannot refund invoice without a paid receipt: ${invoiceId}`);
+    }
+
+    const refundedReceipt: ArcReceipt = {
+      ...receipt,
+      id: `rfnd_${receipt.id}`,
+      status: 'refunded',
+      txHash: refund.txHash ?? receipt.txHash,
+      createdAt: refund.refundedAt ?? Date.now(),
+    };
+
+    this.receipts.set(refundedReceipt.id, refundedReceipt);
+    const refundedInvoice = this.updateInvoice(invoice.id, { status: 'refunded' });
+    this.events.push(createWebhookEvent('invoice.refunded', {
+      invoice: refundedInvoice,
+      receipt: refundedReceipt,
+    }));
+    return refundedReceipt;
+  }
+
+  getReceipt(id: string): ArcReceipt | undefined {
+    return this.receipts.get(id);
+  }
+
+  listReceipts(): ArcReceipt[] {
+    return [...this.receipts.values()];
+  }
+
+  listWebhookEvents(): WebhookEvent[] {
+    return [...this.events];
+  }
+
+  private requireInvoice(id: string): ArcInvoice {
+    const invoice = this.invoices.get(id);
+    if (!invoice) {
+      throw new Error(`Invoice not found: ${id}`);
+    }
+
+    return invoice;
+  }
+
+  private updateInvoice(id: string, patch: Partial<ArcInvoice>): ArcInvoice {
+    const invoice = this.requireInvoice(id);
+    const next = { ...invoice, ...patch };
+    this.invoices.set(id, next);
+    return next;
+  }
+}

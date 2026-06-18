@@ -25,6 +25,10 @@
     "./gateway": {
       "types": "./dist/gateway/index.d.ts",
       "import": "./dist/gateway/index.js"
+    },
+    "./receipts": {
+      "types": "./dist/receipts/index.d.ts",
+      "import": "./dist/receipts/index.js"
     }
   },
   "files": [
@@ -49,7 +53,10 @@
     "middleware",
     "paid-api",
     "micropayments",
-    "usage-based-billing"
+    "usage-based-billing",
+    "receipts",
+    "invoices",
+    "webhooks"
   ],
   "author": "horn111",
   "license": "Apache-2.0",
