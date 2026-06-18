@@ -30,6 +30,20 @@ export {
 
 export { GatewayClient, type GatewayClientConfig } from './gateway/client.js';
 
+export {
+  ReceiptLedger,
+  createInvoice,
+  createInvoiceMemo,
+  createReceipt,
+  signWebhookEvent,
+  verifyWebhookSignature,
+  type ArcInvoice,
+  type ArcReceipt,
+  type CreateInvoiceInput,
+  type ObservedPayment,
+  type WebhookEvent,
+} from './receipts/index.js';
+
 export { ARC_TESTNET, ARC_MAINNET, USDC_DECIMALS } from './constants.js';
 
 export type {

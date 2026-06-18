@@ -1,0 +1,57 @@
+import { describe, expect, it } from 'vitest';
+import { ReceiptLedger } from './ledger.js';
+
+const seller = '0x1111111111111111111111111111111111111111' as const;
+const buyer = '0x2222222222222222222222222222222222222222' as const;
+
+describe('ReceiptLedger', () => {
+  it('records invoice, observed payment, paid receipt, and webhook events', () => {
+    const ledger = new ReceiptLedger();
+    const invoice = ledger.createInvoice({
+      id: 'inv_ledger',
+      amount: '3.50',
+      payTo: seller,
+      customerId: 'cus_123',
+    });
+
+    const receipt = ledger.recordPayment(invoice.id, {
+      from: buyer,
+      to: seller,
+      amount: '3.50',
+      memo: invoice.memo,
+    });
+
+    expect(ledger.getInvoice(invoice.id)?.status).toBe('paid');
+    expect(ledger.getReceipt(receipt.id)).toEqual(receipt);
+    expect(ledger.listInvoices({ customerId: 'cus_123' })).toHaveLength(1);
+    expect(ledger.listWebhookEvents().map((event) => event.type)).toEqual([
+      'invoice.created',
+      'invoice.observed',
+      'invoice.paid',
+    ]);
+  });
+
+  it('marks expired invoices and paid invoices as refunded', () => {
+    const ledger = new ReceiptLedger();
+    const expired = ledger.createInvoice({
+      id: 'inv_expired',
+      amount: '1',
+      payTo: seller,
+      expiresAt: 1_000,
+    });
+
+    expect(ledger.markExpired(expired.id, 1_001).status).toBe('expired');
+
+    const invoice = ledger.createInvoice({ id: 'inv_refund', amount: '1', payTo: seller });
+    ledger.recordPayment(invoice.id, {
+      from: buyer,
+      to: seller,
+      amount: '1',
+      memo: invoice.memo,
+    });
+
+    const refund = ledger.markRefunded(invoice.id, { refundedAt: 2_000 });
+    expect(refund.status).toBe('refunded');
+    expect(ledger.getInvoice(invoice.id)?.status).toBe('refunded');
+  });
+});
