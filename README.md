@@ -43,6 +43,7 @@ We turn these primitives from docs and quickstarts into **drop-in middleware and
 | **Usage Metering** | Track consumption per buyer, per endpoint | ✅ Ready |
 | **Gateway Client** | Unified balance monitoring, deposit tracking | ✅ Ready |
 | **Arc Receipts** | Invoices, transaction memos, receipts, and signed webhooks | ✅ Ready |
+| **Arc Testnet Watcher** | Watches memo-wrapped USDC payments and creates receipts locally | ✅ Ready |
 | **Demo App** | Next.js app with live paywalled API endpoints | ✅ Ready |
 | **Dashboard** | Real-time analytics and revenue tracking | 🔜 Phase 2 |
 | **Multi-Framework** | Fastify, Hono, Python, Go adapters | 🔜 Phase 3 |
@@ -296,12 +297,14 @@ console.log(`Balance: ${balance.available} USDC`);
 
 ### Receipts (`@arc-nano-kit/sdk/receipts`)
 
-Invoice, transaction memo, receipt, and signed webhook helpers for Arc payment workflows:
+Invoice, transaction memo, watcher, receipt, and signed webhook helpers for Arc payment workflows:
 
 ```typescript
 import {
+  ArcReceiptWatcher,
   ReceiptLedger,
   createInvoiceMemo,
+  createMemoPaymentRequest,
   verifyWebhookSignature,
 } from '@arc-nano-kit/sdk/receipts';
 ```
@@ -371,7 +374,7 @@ arc-nano-kit leverages the full Circle stack:
 | Phase | Timeline | Key Deliverables | Status |
 |-------|----------|------------------|--------|
 | **Foundation** | Weeks 1-2 | SDK middleware, buyer client, billing engine, demo app | ✅ In Progress |
-| **Production** | Weeks 3-4 | Arc Receipts, usage dashboard, Gateway helpers, CLI scaffolding | 🔜 Next |
+| **Production** | Weeks 3-4 | Arc Receipts, Arc Testnet watcher, usage dashboard, Gateway helpers, CLI scaffolding | 🔜 Next |
 | **Ecosystem** | Months 2-3 | Multi-framework, agent commerce, Arc Mainnet | 📋 Planned |
 
 See [ROADMAP.md](ROADMAP.md) for the detailed feature roadmap.

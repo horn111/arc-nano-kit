@@ -54,4 +54,26 @@ describe('ReceiptLedger', () => {
     expect(refund.status).toBe('refunded');
     expect(ledger.getInvoice(invoice.id)?.status).toBe('refunded');
   });
+  it('returns the existing receipt for duplicate invoice tx records', () => {
+    const ledger = new ReceiptLedger();
+    const invoice = ledger.createInvoice({ id: 'inv_dupe', amount: '1', payTo: seller });
+    const payment = {
+      txHash: '0xabc' as `0x${string}`,
+      from: buyer,
+      to: seller,
+      amount: '1',
+      memo: invoice.memo,
+    };
+
+    const first = ledger.recordPayment(invoice.id, payment);
+    const second = ledger.recordPayment(invoice.id, payment);
+
+    expect(second).toBe(first);
+    expect(ledger.listReceipts()).toHaveLength(1);
+    expect(ledger.listWebhookEvents().map((event) => event.type)).toEqual([
+      'invoice.created',
+      'invoice.observed',
+      'invoice.paid',
+    ]);
+  });
 });

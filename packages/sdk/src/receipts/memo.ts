@@ -2,6 +2,8 @@
  * Arc transaction memo helpers for invoice correlation.
  */
 
+import { keccak256, stringToHex } from 'viem';
+
 export interface ParsedInvoiceMemo {
   namespace: string;
   version: 'v1';
@@ -24,6 +26,14 @@ export function createInvoiceMemo(invoiceId: string, namespace = 'arc-nano-kit')
   }
 
   return `${cleanNamespace}:invoice:v1:${cleanInvoiceId}`;
+}
+
+export function createInvoiceMemoId(invoiceId: string): `0x${string}` {
+  return keccak256(stringToHex(invoiceId));
+}
+
+export function createInvoiceMemoData(memo: string): `0x${string}` {
+  return stringToHex(memo);
 }
 
 export function parseInvoiceMemo(memo: string): ParsedInvoiceMemo | null {
