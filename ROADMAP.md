@@ -20,6 +20,7 @@ arc-nano-kit is under active development. This roadmap outlines our planned mile
 - [x] Per-job (batch) pricing model
 - [x] Usage metering with in-memory store
 - [x] Arc Receipts MVP (invoice memos, receipts, signed webhooks)
+- [x] Arc Testnet watcher for memo-wrapped USDC payments
 - [ ] Persistent usage store (Supabase/Postgres adapter)
 
 ### Demo
@@ -35,7 +36,8 @@ arc-nano-kit is under active development. This roadmap outlines our planned mile
 - [x] Invoice and transaction memo helpers
 - [x] Receipt matching and in-memory ledger
 - [x] HMAC-signed webhook events
-- [ ] Arc testnet payment watcher
+- [x] Arc Testnet payment watcher
+- [ ] Persistent watcher cursor
 - [ ] SQLite/Postgres receipt store
 - [ ] Next.js webhook route helpers
 - [ ] Refund/counter-payment tracking

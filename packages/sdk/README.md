@@ -4,7 +4,7 @@
 
 This is the core SDK package of [arc-nano-kit](https://github.com/horn111/arc-nano-kit). See the root README for full documentation.
 
-It includes paid API middleware, buyer SDK helpers, usage billing, invoices, receipts, and signed webhooks for Arc payment workflows.
+It includes paid API middleware, buyer SDK helpers, usage billing, invoices, receipt watchers, receipts, and signed webhooks for Arc payment workflows.
 
 ## Installation
 
@@ -63,7 +63,7 @@ const receipt = ledger.recordPayment(invoice.id, {
 | Client | `@arc-nano-kit/sdk/client` | Buyer SDK for automated x402 payments |
 | Billing | `@arc-nano-kit/sdk/billing` | Usage metering & billing plans |
 | Gateway | `@arc-nano-kit/sdk/gateway` | Circle Gateway balance management |
-| Receipts | `@arc-nano-kit/sdk/receipts` | Invoices, memos, receipts, signed webhooks |
+| Receipts | `@arc-nano-kit/sdk/receipts` | Invoices, memos, Arc Testnet watcher, receipts, signed webhooks |
 
 ## License
 

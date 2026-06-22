@@ -1,6 +1,6 @@
 # Arc Receipts
 
-Arc Receipts is the payment operations layer for arc-nano-kit. It gives Arc builders a small, typed workflow for invoices, transaction memos, signed webhooks, receipts, refunds, and reconciliation.
+Arc Receipts is the payment operations layer for arc-nano-kit. It gives Arc builders a small, typed workflow for invoices, transaction memos, signed webhooks, receipts, refunds, watcher-based payment observation, and reconciliation.
 
 The goal is not to replace x402 or Circle App Kits. The goal is to make the application layer around Arc payments easier to ship.
 
@@ -39,9 +39,6 @@ const invoice = ledger.createInvoice({
 console.log(invoice.memo);
 // arc-nano-kit:invoice:v1:inv_pro_plan_123
 
-console.log(invoice.paymentUri);
-// arc://pay?to=0x...&amount=19.00&currency=USDC&network=arc-testnet&memo=...
-
 const receipt = ledger.recordPayment(invoice.id, {
   from: '0x2222222222222222222222222222222222222222',
   to: invoice.payTo,
@@ -60,24 +57,66 @@ console.log(signature.header);
 // t=...,v1=...
 ```
 
+## Arc Testnet Watcher
+
+Use the watcher when you want receipts to come from real Arc Testnet transactions instead of manually calling `recordPayment()`.
+
+```typescript
+import {
+  ArcReceiptWatcher,
+  ReceiptLedger,
+  createMemoPaymentRequest,
+} from '@arc-nano-kit/sdk/receipts';
+
+const ledger = new ReceiptLedger();
+
+const invoice = ledger.createInvoice({
+  id: 'inv_pro_plan_123',
+  amount: '19.00',
+  payTo: '0x1111111111111111111111111111111111111111',
+});
+
+const paymentRequest = createMemoPaymentRequest(invoice);
+
+console.log(paymentRequest.memoContract);
+console.log(paymentRequest.target);       // Arc Testnet USDC ERC-20 interface
+console.log(paymentRequest.memoId);       // Indexed memo id for querying logs
+console.log(paymentRequest.txData);       // Data for Memo.memo(...)
+
+const watcher = new ArcReceiptWatcher({
+  ledger,
+  onReceipt(receipt) {
+    console.log('paid', receipt.txHash);
+  },
+});
+
+watcher.watchInvoice(invoice);
+watcher.start();
+```
+
+The watcher polls Arc Testnet `Memo` events, fetches the transaction receipt, verifies the paired ERC-20 USDC `Transfer`, then writes a receipt and emits signed-webhook-ready ledger events.
+
+It intentionally watches the ERC-20 USDC interface at `0x3600000000000000000000000000000000000000` and ignores the native USDC system event emitter at `0xfffffffffffffffffffffffffffffffffffffffe` to avoid double-counting the same ERC-20 transfer.
+
 ## What ships in the MVP
 
-- `createInvoice()` for invoice ids, stablecoin minor units, Arc payment URIs, and invoice memos.
-- `createInvoiceMemo()` and `parseInvoiceMemo()` for memo correlation.
-- `matchPaymentToInvoice()` to validate amount, recipient, currency, network, memo, and expiry.
-- `createReceipt()` to turn an observed payment into a durable receipt object.
-- `ReceiptLedger` for an in-memory invoice/receipt/event store.
+- `createInvoice()` for invoice ids, stablecoin minor units, Arc payment URIs, memo ids, and invoice memos.
+- `createMemoPaymentRequest()` for Arc `Memo.memo(...)` call data around an ERC-20 USDC transfer.
+- `ArcReceiptWatcher` for polling Arc Testnet memo events and creating receipts from matching payments.
+- `createInvoiceMemo()`, `createInvoiceMemoId()`, `createInvoiceMemoData()`, and `parseInvoiceMemo()` for memo correlation.
+- `matchPaymentToInvoice()` to validate amount, recipient, currency, network, memo, memo id, and expiry.
+- `ReceiptLedger` for an in-memory invoice/receipt/event store with duplicate tx protection.
 - `signWebhookEvent()` and `verifyWebhookSignature()` for HMAC-signed webhooks.
 
 ## Current Limits
 
-This module does not yet watch Arc blocks or Circle Gateway events by itself. Today, callers pass observed payments into `recordPayment()`. A chain watcher and persistent stores are planned next.
+The watcher is intentionally local-first and polling-based. It does not yet persist scan cursors, run a hosted indexer, use Circle event monitors, watch Gateway settlement, or store receipts in a database.
 
 ## Planned Next Steps
 
-- Arc testnet transfer watcher.
 - SQLite/Postgres receipt store.
+- Persistent watcher cursor.
 - Next.js webhook route helpers.
-- Refund receipts and counter-payment tracking.
+- Refund receipts and partial refund accounting.
 - Unified Balance readiness states.
 - Demo dashboard for invoice state transitions.

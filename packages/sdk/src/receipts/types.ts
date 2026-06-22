@@ -46,6 +46,8 @@ export interface ArcInvoice {
   payTo: `0x${string}`;
   network: string;
   memo: string;
+  memoId?: `0x${string}`;
+  memoData?: `0x${string}`;
   paymentUri: string;
   createdAt: number;
   expiresAt?: number;
@@ -62,9 +64,24 @@ export interface ObservedPayment {
   currency?: StablecoinSymbol;
   network?: string;
   memo?: string;
+  memoId?: `0x${string}`;
+  callDataHash?: `0x${string}`;
   observedAt?: number;
   blockNumber?: bigint;
   metadata?: Record<string, unknown>;
+}
+
+export interface MemoPaymentRequest {
+  invoiceId: string;
+  memoContract: `0x${string}`;
+  target: `0x${string}`;
+  data: `0x${string}`;
+  txData: `0x${string}`;
+  memoId: `0x${string}`;
+  memoData: `0x${string}`;
+  callDataHash: `0x${string}`;
+  amountUnits: string;
+  payTo: `0x${string}`;
 }
 
 export interface PaymentMatchResult {

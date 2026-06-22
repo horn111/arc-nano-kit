@@ -17,7 +17,20 @@ export {
   createInvoiceMemo,
   parseInvoiceMemo,
   type ParsedInvoiceMemo,
+  createInvoiceMemoData,
+  createInvoiceMemoId,
 } from './memo.js';
+export {
+  ARC_MEMO_ABI,
+  ERC20_TRANSFER_ABI,
+  createMemoPaymentRequest,
+  type MemoPaymentRequestOptions,
+} from './memo-payment.js';
+export {
+  ArcReceiptWatcher,
+  type ArcReceiptWatcherConfig,
+  type ArcReceiptWatcherLifecycleEvent,
+} from './watcher.js';
 export {
   createWebhookEvent,
   serializeWebhookPayload,
@@ -30,6 +43,7 @@ export type {
   ArcReceipt,
   CreateInvoiceInput,
   InvoiceStatus,
+  MemoPaymentRequest,
   ObservedPayment,
   PaymentMatchResult,
   ReceiptStatus,

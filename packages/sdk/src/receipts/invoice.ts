@@ -5,7 +5,7 @@
 import { randomBytes } from 'node:crypto';
 import { DEFAULTS } from '../constants.js';
 import { isAmountAtLeast, toStablecoinUnits } from './amount.js';
-import { createInvoiceMemo } from './memo.js';
+import { createInvoiceMemo, createInvoiceMemoData, createInvoiceMemoId } from './memo.js';
 import type {
   ArcInvoice,
   ArcReceipt,
@@ -22,6 +22,8 @@ export function createInvoice(input: CreateInvoiceInput): ArcInvoice {
   const network = input.network ?? DEFAULTS.network;
   const createdAt = input.createdAt ?? Date.now();
   const memo = createInvoiceMemo(id);
+  const memoId = createInvoiceMemoId(id);
+  const memoData = createInvoiceMemoData(memo);
   const amountUnits = toStablecoinUnits(input.amount).toString();
 
   return {
@@ -33,6 +35,8 @@ export function createInvoice(input: CreateInvoiceInput): ArcInvoice {
     payTo: input.payTo,
     network,
     memo,
+    memoId,
+    memoData,
     paymentUri: createPaymentUri({
       payTo: input.payTo,
       amount: input.amount,
@@ -94,6 +98,14 @@ export function matchPaymentToInvoice(
 
   if (payment.memo !== undefined && payment.memo !== invoice.memo) {
     return { success: false, reason: 'wrong_memo' };
+  }
+
+  if (
+    payment.memoId !== undefined
+    && invoice.memoId !== undefined
+    && payment.memoId.toLowerCase() !== invoice.memoId.toLowerCase()
+  ) {
+    return { success: false, reason: 'wrong_memo_id' };
   }
 
   if (!isAmountAtLeast(payment.amount, invoice.amount)) {

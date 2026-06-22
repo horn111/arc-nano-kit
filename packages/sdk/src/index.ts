@@ -31,20 +31,24 @@ export {
 export { GatewayClient, type GatewayClientConfig } from './gateway/client.js';
 
 export {
+  ArcReceiptWatcher,
   ReceiptLedger,
   createInvoice,
   createInvoiceMemo,
+  createMemoPaymentRequest,
   createReceipt,
   signWebhookEvent,
   verifyWebhookSignature,
   type ArcInvoice,
   type ArcReceipt,
+  type ArcReceiptWatcherConfig,
   type CreateInvoiceInput,
+  type MemoPaymentRequest,
   type ObservedPayment,
   type WebhookEvent,
 } from './receipts/index.js';
 
-export { ARC_TESTNET, ARC_MAINNET, USDC_DECIMALS } from './constants.js';
+export { ARC_TESTNET, ARC_TESTNET_CONTRACTS, ARC_MAINNET, USDC_DECIMALS } from './constants.js';
 
 export type {
   PaymentRequirements,

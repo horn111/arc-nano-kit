@@ -57,6 +57,13 @@ export class ReceiptLedger {
   }
 
   recordPayment(invoiceId: string, payment: ObservedPayment): ArcReceipt {
+    const existingReceipt = payment.txHash
+      ? this.getReceiptByTxHash(payment.txHash, invoiceId)
+      : undefined;
+    if (existingReceipt) {
+      return existingReceipt;
+    }
+
     const invoice = this.requireInvoice(invoiceId);
     const observedInvoice = this.updateInvoice(invoice.id, { status: 'observed' });
     this.events.push(createWebhookEvent('invoice.observed', { invoice: observedInvoice, payment }));
@@ -107,6 +114,13 @@ export class ReceiptLedger {
 
   getReceipt(id: string): ArcReceipt | undefined {
     return this.receipts.get(id);
+  }
+
+  getReceiptByTxHash(txHash: `0x${string}`, invoiceId?: string): ArcReceipt | undefined {
+    return [...this.receipts.values()].find((receipt) => (
+      receipt.txHash?.toLowerCase() === txHash.toLowerCase()
+      && (invoiceId === undefined || receipt.invoiceId === invoiceId)
+    ));
   }
 
   listReceipts(): ArcReceipt[] {
