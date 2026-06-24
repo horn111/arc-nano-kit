@@ -1,12 +1,12 @@
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'arc-nano-kit Demo — Paid APIs on Arc',
+  title: 'arc-nano-kit Demo - Arc Receipts',
   description:
-    'Interactive demo of usage-based billing and paywalled API endpoints powered by Circle Nanopayments on Arc.',
+    'Interactive demo of Arc Receipts, memo payment requests, signed webhooks, and paid API endpoints.',
   openGraph: {
-    title: 'arc-nano-kit Demo',
-    description: 'Usage-based billing for APIs on Arc',
+    title: 'arc-nano-kit Demo - Arc Receipts',
+    description: 'Arc Receipts and paid API operations on Arc',
     url: 'https://arc-nano-kit.vercel.app',
   },
 };
@@ -28,8 +28,8 @@ export default function RootLayout({
         style={{
           margin: 0,
           fontFamily: 'Inter, -apple-system, sans-serif',
-          backgroundColor: '#0a0a0f',
-          color: '#e4e4e7',
+          backgroundColor: '#07090f',
+          color: '#e7edf7',
           minHeight: '100vh',
         }}
       >
