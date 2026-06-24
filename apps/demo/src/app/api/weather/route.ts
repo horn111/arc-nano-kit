@@ -1,5 +1,7 @@
 import { nextPaywall } from '@arc-nano-kit/sdk/middleware';
 
+const DEMO_SELLER = '0x1111111111111111111111111111111111111111';
+
 interface WeatherData {
   city: string;
   temperature: number;
@@ -43,7 +45,8 @@ export const GET = nextPaywall(
   {
     price: '0.005',
     network: 'arc-testnet',
-    description: 'Get weather data for a city — $0.005 USDC per request',
+    payTo: DEMO_SELLER,
+    description: 'Get weather data for a city - $0.005 USDC per request',
   },
   async (request: Request) => {
     const url = new URL(request.url);

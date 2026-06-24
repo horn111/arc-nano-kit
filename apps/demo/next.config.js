@@ -1,8 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  experimental: {
-    serverComponentsExternalPackages: ['viem'],
-  },
+  serverExternalPackages: ['viem'],
 };
 
 module.exports = nextConfig;
