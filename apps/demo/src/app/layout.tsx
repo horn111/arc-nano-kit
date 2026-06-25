@@ -20,7 +20,7 @@ export default function RootLayout({
     <html lang="en">
       <head>
         <link
-          href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+          href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Newsreader:opsz,wght@6..72,400;6..72,600&display=swap"
           rel="stylesheet"
         />
       </head>
@@ -28,8 +28,8 @@ export default function RootLayout({
         style={{
           margin: 0,
           fontFamily: 'Inter, -apple-system, sans-serif',
-          backgroundColor: '#07090f',
-          color: '#e7edf7',
+          backgroundColor: '#0d0d0d',
+          color: '#f2f2f2',
           minHeight: '100vh',
         }}
       >
