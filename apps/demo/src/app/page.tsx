@@ -70,10 +70,32 @@ type ReceiptDemo = {
   webhook: {
     eventId: string;
     type: string;
+    event: WebhookDemoEvent;
     signatureHeader: string;
     target: string;
   };
   timeline: TimelineItem[];
+};
+
+type WebhookDemoEvent = {
+  id: string;
+  type: string;
+  createdAt: number;
+  data: unknown;
+};
+
+type WebhookDeliveryAttempt = {
+  id: string;
+  eventId: string;
+  eventType: string;
+  attempt: number;
+  status: 'verified' | 'failed';
+  verified: boolean;
+  signatureHeader: string;
+  receivedAt: number;
+  target?: string;
+  replayOf?: string;
+  error?: string;
 };
 
 type FlowBlockId = 'invoice' | 'request' | 'watch' | 'receipt';
@@ -113,13 +135,6 @@ const pendingTimeline: TimelineItem[] = [
   { id: 'receipt', label: 'receipt.generated', detail: 'Awaiting transaction confirmations.' },
 ];
 
-const factMap: Record<FlowBlockId, string[]> = {
-  invoice: ['invoice', 'amount'],
-  request: ['contract', 'memoId', 'hash'],
-  watch: ['contract'],
-  receipt: ['invoice', 'amount', 'memoId'],
-};
-
 export default function HomePage() {
   const [receiptDemo, setReceiptDemo] = useState<ReceiptDemo | null>(null);
   const [receiptLoading, setReceiptLoading] = useState(false);
@@ -128,6 +143,9 @@ export default function HomePage() {
   const [selectedBlock, setSelectedBlock] = useState<FlowBlockId>('invoice');
   const [endpointResult, setEndpointResult] = useState<EndpointResult | null>(null);
   const [endpointLoading, setEndpointLoading] = useState<string | null>(null);
+  const [webhookDeliveries, setWebhookDeliveries] = useState<WebhookDeliveryAttempt[]>([]);
+  const [webhookInboxError, setWebhookInboxError] = useState<string | null>(null);
+  const [replayLoading, setReplayLoading] = useState(false);
 
   const terminalState = receiptLoading
     ? 'Watching flow'
@@ -145,6 +163,8 @@ export default function HomePage() {
     setTimeline(pendingTimeline);
     setCompletedSteps([]);
     setSelectedBlock('invoice');
+    setWebhookDeliveries([]);
+    setWebhookInboxError(null);
 
     try {
       const response = await fetch('/api/receipts', { cache: 'no-store' });
@@ -172,11 +192,70 @@ export default function HomePage() {
 
       setTimeline(data.timeline);
       setSelectedBlock('receipt');
+      await deliverWebhookToInbox(data);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown receipt demo error';
       setEndpointResult({ error: message });
     } finally {
       setReceiptLoading(false);
+    }
+  };
+
+  const deliverWebhookToInbox = async (data: ReceiptDemo) => {
+    const response = await fetch('/api/webhook-inbox', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-arc-signature': data.webhook.signatureHeader,
+      },
+      body: JSON.stringify(data.webhook.event),
+    });
+    const result = (await response.json()) as {
+      delivery?: WebhookDeliveryAttempt;
+      error?: string;
+    };
+
+    if (!response.ok || !result.delivery) {
+      throw new Error(result.error ?? 'Webhook inbox delivery failed');
+    }
+
+    setWebhookDeliveries([result.delivery]);
+  };
+
+  const replayWebhook = async () => {
+    if (!receiptDemo) {
+      return;
+    }
+
+    setReplayLoading(true);
+    setWebhookInboxError(null);
+
+    try {
+      const previous = webhookDeliveries[webhookDeliveries.length - 1];
+      const response = await fetch('/api/webhook-inbox/replay', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          event: receiptDemo.webhook.event,
+          replayOf: previous?.id,
+        }),
+      });
+      const result = (await response.json()) as {
+        delivery?: WebhookDeliveryAttempt;
+        error?: string;
+      };
+
+      if (!response.ok || !result.delivery) {
+        throw new Error(result.error ?? 'Webhook replay failed');
+      }
+
+      const delivery = result.delivery;
+      setWebhookDeliveries((current) => [...current, delivery]);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown replay error';
+      setWebhookInboxError(message);
+    } finally {
+      setReplayLoading(false);
     }
   };
 
@@ -361,10 +440,65 @@ export default function HomePage() {
             <div className="panel-header compact">
               <div>
                 <p className="eyebrow">Notification Hub</p>
-                <h2 className="panel-title">Webhook Payload</h2>
+                <h2 className="panel-title">Webhook Inbox</h2>
+              </div>
+              <button
+                className="btn-flow replay-button"
+                onClick={replayWebhook}
+                disabled={!receiptDemo || webhookDeliveries.length === 0 || replayLoading}
+              >
+                {replayLoading ? 'Replaying...' : 'Replay Webhook'}
+              </button>
+            </div>
+
+            <div className="inbox-status-grid">
+              <div className={`inbox-status ${webhookDeliveries.length > 0 ? 'ok' : ''}`}>
+                <span>Received</span>
+                <strong>{webhookDeliveries.length > 0 ? 'yes' : 'pending'}</strong>
+              </div>
+              <div className={`inbox-status ${webhookDeliveries[0]?.verified ? 'ok' : ''}`}>
+                <span>Verified</span>
+                <strong>{webhookDeliveries[0]?.verified ? 'yes' : 'pending'}</strong>
+              </div>
+              <div className={`inbox-status ${webhookDeliveries[0]?.status === 'verified' ? 'ok' : ''}`}>
+                <span>Signature</span>
+                <strong>{webhookDeliveries[0]?.status === 'verified' ? 'OK' : 'pending'}</strong>
+              </div>
+              <div className={`inbox-status ${webhookDeliveries.length > 0 ? 'ok' : ''}`}>
+                <span>Attempts</span>
+                <strong>{webhookDeliveries.length || 'pending'}</strong>
               </div>
             </div>
-            <JsonCode data={getWebhookPayload(receiptDemo)} />
+
+            {webhookInboxError ? <p className="inbox-error">{webhookInboxError}</p> : null}
+            <div className="delivery-attempts" aria-label="Webhook delivery attempts">
+              {webhookDeliveries.length === 0 ? (
+                <div className="delivery-attempt pending">
+                  <div>
+                    <strong>Delivery attempt #1</strong>
+                    <span>waiting for signed webhook</span>
+                  </div>
+                  <span className="delivery-signature">signature pending</span>
+                </div>
+              ) : (
+                webhookDeliveries.map((delivery) => (
+                  <div className={`delivery-attempt ${delivery.status}`} key={delivery.id}>
+                    <div>
+                      <strong>Delivery attempt #{delivery.attempt}</strong>
+                      <span>{delivery.eventType}</span>
+                    </div>
+                    <div className="delivery-meta">
+                      <span>{delivery.verified ? 'Signature OK' : 'Signature failed'}</span>
+                      <span>{formatSignatureTimestamp(delivery.signatureHeader)}</span>
+                    </div>
+                    {delivery.replayOf ? (
+                      <span className="delivery-replay">replay of {formatAddress(delivery.replayOf, 10, 6)}</span>
+                    ) : null}
+                  </div>
+                ))
+              )}
+            </div>
+            <JsonCode data={getWebhookInboxPayload(receiptDemo, webhookDeliveries)} />
           </div>
         </section>
 
@@ -610,6 +744,12 @@ export default function HomePage() {
         .btn-endpoint:disabled {
           cursor: wait;
           opacity: 0.68;
+        }
+
+        .replay-button {
+          min-height: 34px;
+          padding: 0 12px;
+          font-size: 13px;
         }
 
         .pipeline-container,
@@ -964,6 +1104,114 @@ export default function HomePage() {
           color: var(--pale-red-text);
         }
 
+        .inbox-status-grid {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 8px;
+          margin-bottom: 16px;
+        }
+
+        .inbox-status {
+          min-width: 0;
+          padding: 10px;
+          border: 1px solid var(--border-color);
+          border-radius: 8px;
+          background: var(--bg-canvas);
+        }
+
+        .inbox-status.ok {
+          border-color: rgba(129, 201, 149, 0.52);
+          background: var(--pale-green);
+        }
+
+        .inbox-status span,
+        .inbox-status strong {
+          display: block;
+          font-family: JetBrains Mono, Geist Mono, SFMono-Regular, Consolas, monospace;
+        }
+
+        .inbox-status span {
+          margin-bottom: 3px;
+          color: var(--text-muted);
+          font-size: 10px;
+          text-transform: uppercase;
+        }
+
+        .inbox-status strong {
+          color: var(--text-main);
+          font-size: 12px;
+          font-weight: 500;
+        }
+
+        .inbox-status.ok strong {
+          color: var(--pale-green-text);
+        }
+
+        .inbox-error {
+          margin-bottom: 12px;
+          color: var(--pale-red-text);
+          font-size: 13px;
+        }
+
+        .delivery-attempts {
+          display: grid;
+          gap: 8px;
+          margin-bottom: 16px;
+        }
+
+        .delivery-attempt {
+          display: grid;
+          gap: 8px;
+          padding: 12px;
+          border: 1px solid var(--border-color);
+          border-radius: 8px;
+          background: var(--bg-canvas);
+        }
+
+        .delivery-attempt.verified {
+          border-color: rgba(129, 201, 149, 0.52);
+          background: rgba(129, 201, 149, 0.08);
+        }
+
+        .delivery-attempt.failed {
+          border-color: rgba(255, 105, 105, 0.45);
+          background: rgba(255, 105, 105, 0.08);
+        }
+
+        .delivery-attempt strong,
+        .delivery-attempt span {
+          display: block;
+          font-family: JetBrains Mono, Geist Mono, SFMono-Regular, Consolas, monospace;
+        }
+
+        .delivery-attempt strong {
+          margin-bottom: 4px;
+          color: var(--text-main);
+          font-size: 12px;
+          font-weight: 600;
+        }
+
+        .delivery-attempt span {
+          color: var(--text-muted);
+          font-size: 11px;
+        }
+
+        .delivery-meta {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 8px;
+        }
+
+        .delivery-meta span,
+        .delivery-signature,
+        .delivery-replay {
+          width: fit-content;
+          padding: 4px 7px;
+          border: 1px solid var(--border-color);
+          border-radius: 999px;
+          background: rgba(255, 255, 255, 0.03);
+        }
+
         .endpoint-panel {
           margin-bottom: 0;
         }
@@ -1122,6 +1370,10 @@ export default function HomePage() {
             width: 100%;
           }
 
+          .inbox-status-grid {
+            grid-template-columns: 1fr;
+          }
+
           .btn-endpoint {
             align-items: flex-start;
             flex-direction: column;
@@ -1179,16 +1431,22 @@ function getReceiptPayload(data: ReceiptDemo | null) {
   };
 }
 
-function getWebhookPayload(data: ReceiptDemo | null) {
+function getWebhookInboxPayload(data: ReceiptDemo | null, deliveries: WebhookDeliveryAttempt[]) {
   if (!data) {
-    return { status: 'pending' };
+    return {
+      event: { status: 'pending' },
+      deliveries: [],
+    };
   }
 
   return {
-    eventId: data.webhook.eventId,
-    type: data.webhook.type,
-    target: data.webhook.target,
-    signature: data.webhook.signatureHeader,
+    event: {
+      id: data.webhook.eventId,
+      type: data.webhook.type,
+      target: data.webhook.target,
+      signature: data.webhook.signatureHeader,
+    },
+    deliveries,
   };
 }
 
@@ -1230,6 +1488,15 @@ function formatAddress(value?: string, start = 10, end = 8) {
   }
 
   return `${value.slice(0, start)}...${value.slice(-end)}`;
+}
+
+function formatSignatureTimestamp(header: string) {
+  const timestamp = header
+    .split(',')
+    .map((part) => part.trim())
+    .find((part) => part.startsWith('t='));
+
+  return timestamp ?? 't=pending';
 }
 
 function delay(ms: number) {

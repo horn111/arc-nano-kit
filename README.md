@@ -303,11 +303,14 @@ Invoice, transaction memo, watcher, receipt, and signed webhook helpers for Arc 
 import {
   ArcReceiptWatcher,
   ReceiptLedger,
+  WebhookInbox,
   createInvoiceMemo,
   createMemoPaymentRequest,
   verifyWebhookSignature,
 } from '@arc-nano-kit/sdk/receipts';
 ```
+
+`WebhookInbox` lets local apps receive a signed `invoice.paid` webhook, verify the signature, store the delivery attempt, and replay the same event while developing payment operations.
 
 ## 🌐 Why Arc?
 

@@ -38,6 +38,12 @@ export {
   verifyWebhookSignature,
   type WebhookSignature,
 } from './webhooks.js';
+export {
+  WebhookInbox,
+  type ReceiveWebhookInput,
+  type ReplayWebhookInput,
+  type WebhookDeliveryFilter,
+} from './webhook-inbox.js';
 export type {
   ArcInvoice,
   ArcReceipt,
@@ -48,6 +54,8 @@ export type {
   PaymentMatchResult,
   ReceiptStatus,
   StablecoinSymbol,
+  WebhookDeliveryAttempt,
+  WebhookDeliveryStatus,
   WebhookEvent,
   WebhookEventType,
 } from './types.js';
