@@ -119,3 +119,19 @@ export interface WebhookEvent<TData = unknown> {
   createdAt: number;
   data: TData;
 }
+
+export type WebhookDeliveryStatus = 'verified' | 'failed';
+
+export interface WebhookDeliveryAttempt {
+  id: string;
+  eventId: string;
+  eventType: WebhookEventType | 'unknown';
+  attempt: number;
+  status: WebhookDeliveryStatus;
+  verified: boolean;
+  signatureHeader: string;
+  receivedAt: number;
+  target?: string;
+  replayOf?: string;
+  error?: string;
+}

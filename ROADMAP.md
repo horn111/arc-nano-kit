@@ -37,6 +37,7 @@ arc-nano-kit is under active development. This roadmap outlines our planned mile
 - [x] Receipt matching and in-memory ledger
 - [x] HMAC-signed webhook events
 - [x] Arc Testnet payment watcher
+- [x] Local webhook inbox and replay attempts
 - [ ] Persistent watcher cursor
 - [ ] SQLite/Postgres receipt store
 - [ ] Next.js webhook route helpers

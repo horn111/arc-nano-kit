@@ -33,6 +33,7 @@ export { GatewayClient, type GatewayClientConfig } from './gateway/client.js';
 export {
   ArcReceiptWatcher,
   ReceiptLedger,
+  WebhookInbox,
   createInvoice,
   createInvoiceMemo,
   createMemoPaymentRequest,
@@ -45,6 +46,8 @@ export {
   type CreateInvoiceInput,
   type MemoPaymentRequest,
   type ObservedPayment,
+  type WebhookDeliveryAttempt,
+  type WebhookDeliveryStatus,
   type WebhookEvent,
 } from './receipts/index.js';
 

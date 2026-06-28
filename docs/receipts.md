@@ -98,6 +98,40 @@ The watcher polls Arc Testnet `Memo` events, fetches the transaction receipt, ve
 
 It intentionally watches the ERC-20 USDC interface at `0x3600000000000000000000000000000000000000` and ignores the native USDC system event emitter at `0xfffffffffffffffffffffffffffffffffffffffe` to avoid double-counting the same ERC-20 transfer.
 
+## Webhook Inbox and Replay
+
+Use `WebhookInbox` when you want a local app to receive, verify, store, and replay Arc Receipts webhook deliveries.
+
+```typescript
+import {
+  WebhookInbox,
+  serializeWebhookPayload,
+  signWebhookEvent,
+} from '@arc-nano-kit/sdk/receipts';
+
+const inbox = new WebhookInbox();
+const event = ledger.listWebhookEvents().at(-1)!;
+const signature = signWebhookEvent(event, process.env.ARC_WEBHOOK_SECRET!);
+
+const delivery = inbox.receive({
+  payload: serializeWebhookPayload(event),
+  header: signature.header,
+  secret: process.env.ARC_WEBHOOK_SECRET!,
+  target: 'https://seller.app/webhooks/arc',
+});
+
+const replay = inbox.replay({
+  event,
+  secret: process.env.ARC_WEBHOOK_SECRET!,
+  replayOf: delivery.id,
+});
+
+console.log(delivery.status); // verified
+console.log(replay.attempt);  // 2
+```
+
+The inbox is intentionally in-memory for local payment-ops workflows. A production app should persist delivery attempts in its own database.
+
 ## What ships in the MVP
 
 - `createInvoice()` for invoice ids, stablecoin minor units, Arc payment URIs, memo ids, and invoice memos.
@@ -107,6 +141,7 @@ It intentionally watches the ERC-20 USDC interface at `0x36000000000000000000000
 - `matchPaymentToInvoice()` to validate amount, recipient, currency, network, memo, memo id, and expiry.
 - `ReceiptLedger` for an in-memory invoice/receipt/event store with duplicate tx protection.
 - `signWebhookEvent()` and `verifyWebhookSignature()` for HMAC-signed webhooks.
+- `WebhookInbox` for local signed-webhook verification, delivery attempts, and replay.
 
 ## Current Limits
 

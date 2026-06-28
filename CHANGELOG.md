@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Arc Receipts MVP with invoice memos, receipt matching, in-memory ledger, and signed webhook helpers.
 - Arc Testnet watcher for memo-wrapped USDC payments, plus memo payment request helpers and official Arc Testnet contract constants.
+- Webhook Inbox + Replay for local signed-webhook delivery verification and replay attempts.
 
 ## [0.2.0-alpha] - 2026-06-02
 

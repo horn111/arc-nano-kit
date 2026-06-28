@@ -63,7 +63,7 @@ const receipt = ledger.recordPayment(invoice.id, {
 | Client | `@arc-nano-kit/sdk/client` | Buyer SDK for automated x402 payments |
 | Billing | `@arc-nano-kit/sdk/billing` | Usage metering & billing plans |
 | Gateway | `@arc-nano-kit/sdk/gateway` | Circle Gateway balance management |
-| Receipts | `@arc-nano-kit/sdk/receipts` | Invoices, memos, Arc Testnet watcher, receipts, signed webhooks |
+| Receipts | `@arc-nano-kit/sdk/receipts` | Invoices, memos, Arc Testnet watcher, receipts, signed webhooks, webhook inbox replay |
 
 ## License
 

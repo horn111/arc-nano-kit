@@ -1,0 +1,29 @@
+import type { WebhookEvent } from '@arc-nano-kit/sdk/receipts';
+import { DEMO_WEBHOOK_SECRET, DEMO_WEBHOOK_TARGET, webhookInbox } from '../store';
+
+export const dynamic = 'force-dynamic';
+
+interface ReplayRequest {
+  event?: WebhookEvent;
+  replayOf?: string;
+}
+
+export async function POST(request: Request) {
+  const body = (await request.json()) as ReplayRequest;
+
+  if (!body.event) {
+    return Response.json(
+      { error: 'Missing webhook event' },
+      { status: 400 },
+    );
+  }
+
+  const delivery = webhookInbox.replay({
+    event: body.event,
+    secret: DEMO_WEBHOOK_SECRET,
+    target: DEMO_WEBHOOK_TARGET,
+    replayOf: body.replayOf,
+  });
+
+  return Response.json({ delivery });
+}

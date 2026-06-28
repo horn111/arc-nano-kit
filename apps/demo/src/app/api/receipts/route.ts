@@ -3,13 +3,13 @@ import {
   createMemoPaymentRequest,
   signWebhookEvent,
 } from '@arc-nano-kit/sdk/receipts';
+import { DEMO_WEBHOOK_SECRET, DEMO_WEBHOOK_TARGET } from '../webhook-inbox/store';
 
 export const dynamic = 'force-dynamic';
 
 const DEMO_SELLER = '0x1111111111111111111111111111111111111111';
 const DEMO_PAYER = '0x2222222222222222222222222222222222222222';
 const DEMO_TX_HASH = '0x7a6d91b9f5b42e6f9a4d8d5c0a5f1a833f9f94c8b2e7d4d0a0e8c7b6a5f4d3c2';
-const WEBHOOK_SECRET = 'arc_receipts_demo_secret';
 
 export async function GET() {
   const now = Date.now();
@@ -62,7 +62,7 @@ export async function GET() {
     );
   }
 
-  const signature = signWebhookEvent(paidEvent, WEBHOOK_SECRET);
+  const signature = signWebhookEvent(paidEvent, DEMO_WEBHOOK_SECRET);
 
   return Response.json({
     generatedAt: new Date().toISOString(),
@@ -117,8 +117,9 @@ export async function GET() {
     webhook: {
       eventId: paidEvent.id,
       type: paidEvent.type,
+      event: paidEvent,
       signatureHeader: signature.header,
-      target: 'https://seller.app/webhooks/arc',
+      target: DEMO_WEBHOOK_TARGET,
     },
     timeline: [
       {
