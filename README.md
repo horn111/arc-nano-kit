@@ -1,68 +1,148 @@
 <p align="center">
-  <img src="https://img.shields.io/badge/Arc-Testnet-7c3aed?style=for-the-badge&logo=data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48Y2lyY2xlIGN4PSIxMiIgY3k9IjEyIiByPSIxMCIgZmlsbD0id2hpdGUiLz48L3N2Zz4=" alt="Arc Testnet" />
+  <img src="https://img.shields.io/badge/Arc-Public_Testnet-7c3aed?style=for-the-badge" alt="Arc Public Testnet" />
   <img src="https://img.shields.io/badge/USDC-Powered-2775ca?style=for-the-badge&logo=circle&logoColor=white" alt="USDC Powered" />
-  <img src="https://img.shields.io/badge/x402-Protocol-000000?style=for-the-badge" alt="x402 Protocol" />
+  <img src="https://img.shields.io/badge/x402-Compatible-000000?style=for-the-badge" alt="x402 Compatible" />
   <a href="https://opensource.org/licenses/Apache-2.0"><img src="https://img.shields.io/badge/License-Apache_2.0-blue?style=for-the-badge" alt="License" /></a>
-  <a href="https://arc-nano-kit-demo.vercel.app"><img src="https://img.shields.io/badge/Live-Demo-success?style=for-the-badge" alt="Live Demo" /></a>
   <img src="https://img.shields.io/badge/TypeScript-5.6+-3178c6?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript" />
 </p>
 
 <h1 align="center">arc-nano-kit</h1>
 
 <p align="center">
-  <strong>Open-source payment ops toolkit for Arc: paid APIs, usage billing,<br/>invoices, receipts, signed webhooks, and stablecoin reconciliation.</strong>
+  <strong>Open-source payment operations toolkit for Arc builders.</strong>
+  <br />
+  Paid APIs, invoices, transaction memos, receipts, watchers, signed webhooks, and local delivery replay.
 </p>
 
 <p align="center">
-  <a href="#-quickstart">Quickstart</a> ·
-  <a href="#-architecture">Architecture</a> ·
-  <a href="#-features">Features</a> ·
-  <a href="docs/getting-started.md">Documentation</a> ·
-  <a href="ROADMAP.md">Roadmap</a> ·
-  <a href="#-contributing">Contributing</a>
+  <a href="#why-this-exists">Why</a> ·
+  <a href="#what-works-today">What Works</a> ·
+  <a href="#arc-receipts">Arc Receipts</a> ·
+  <a href="#quickstart">Quickstart</a> ·
+  <a href="docs/receipts.md">Receipts Docs</a> ·
+  <a href="ROADMAP.md">Roadmap</a>
 </p>
 
 ---
 
-## The Problem
+## Why This Exists
 
-Circle has shipped powerful payment primitives — **Nanopayments**, **Gateway batched settlement**, **transaction memos**, **App Kits**, and the **x402 protocol** — but builders still need an Arc-first open-source package with great DX that turns those primitives into shippable payment workflows.
+Arc is built for stablecoin-native financial applications: predictable USDC-denominated fees, fast deterministic settlement, and direct access to Circle's developer stack.
 
-**arc-nano-kit bridges that gap.**
+That creates a strong base layer, but application developers still need the operational layer around payments:
 
-We turn these primitives from docs and quickstarts into **drop-in middleware and payment ops utilities** for Express, Next.js, and Fastify, complete with a billing engine, buyer SDK, invoices, receipts, signed webhooks, and usage tracking.
+- pricing and paid API gates
+- invoice IDs
+- transaction memos
+- receipt generation
+- webhook signing
+- webhook verification
+- replayable delivery attempts
+- local reconciliation during development
 
-## ✨ Features
+`arc-nano-kit` is focused on that application layer. The current product direction is intentionally narrow: make Arc payments feel operable for developers building APIs, agents, and stablecoin-native apps.
 
-| Feature | Description | Status |
-|---------|-------------|--------|
-| **Paywall Middleware** | One-line Express/Next.js middleware for x402-protected endpoints | ✅ Ready |
-| **CLI Generator** | Scaffold new paid APIs in 30 seconds via `npx create-arc-nano-kit` | ✅ Ready |
-| **Buyer SDK** | TypeScript client with automatic `402 → sign → retry` flow | ✅ Ready |
-| **Billing Engine** | Per-request, per-second, per-job pricing models | ✅ Ready |
-| **Usage Metering** | Track consumption per buyer, per endpoint | ✅ Ready |
-| **Gateway Client** | Unified balance monitoring, deposit tracking | ✅ Ready |
-| **Arc Receipts** | Invoices, transaction memos, receipts, and signed webhooks | ✅ Ready |
-| **Arc Testnet Watcher** | Watches memo-wrapped USDC payments and creates receipts locally | ✅ Ready |
-| **Demo App** | Next.js app with live paywalled API endpoints | ✅ Ready |
-| **Dashboard** | Real-time analytics and revenue tracking | 🔜 Phase 2 |
-| **Multi-Framework** | Fastify, Hono, Python, Go adapters | 🔜 Phase 3 |
+## Grant Snapshot
 
-## 🚀 Quickstart
+`arc-nano-kit` is a TypeScript monorepo with:
 
-### Scaffold a New Project (Recommended)
+- `@arc-nano-kit/sdk` for middleware, buyer flows, billing, receipts, watcher logic, and webhook delivery helpers.
+- `create-arc-nano-kit` for scaffolding a paid API project from this repo.
+- `apps/demo` for a local Next.js demo of paywalled endpoints and Arc Receipts payment ops.
+- Documentation for getting started, architecture, Arc rationale, and the receipts module.
 
-The fastest way to get started is with our interactive CLI:
+The newest shipped path is:
 
-```bash
-npx create-arc-nano-kit
+```text
+create invoice
+build Arc transaction memo payment request
+watch Arc Testnet memo-wrapped USDC payment
+generate receipt
+create signed invoice.paid webhook
+deliver webhook into local inbox
+verify SDK signature
+replay webhook with a fresh timestamp
 ```
 
-This will prompt you for your preferred framework (Express or Next.js) and pricing model, then generate a fully configured, ready-to-run project.
+This is not a hosted dashboard or production queue yet. It is a developer-facing local payment ops kit that proves the core workflow end to end.
 
-### Manual Setup
+## What Works Today
 
-**Express.js** — 3 lines to add usage-based billing:
+| Area | Status | Notes |
+|------|--------|-------|
+| Express paywall middleware | Ready | Returns x402-style `402 Payment Required` responses and validates payment payloads. |
+| Next.js Route Handler adapter | Ready | Wraps App Router route handlers with the same paywall flow. |
+| Buyer SDK | Ready | Handles `402 -> sign -> retry` for EIP-3009-style payments. |
+| Billing engine | Ready | Per-request, per-second, and per-job pricing helpers. |
+| Usage metering | Ready | In-memory usage records and summaries. |
+| CLI scaffolder | Ready in repo | `packages/create-arc-nano-kit` generates Express or Next.js paid API starters. |
+| Arc Receipts | Ready | Invoices, memos, receipts, signed webhook events, and in-memory ledger. |
+| Arc Testnet watcher | Ready | Watches memo-wrapped USDC payments and records matching receipts locally. |
+| Webhook Inbox + Replay | Ready | Verifies signed webhook delivery attempts and replays events locally. |
+| Demo app | Ready locally | Next.js demo with paid endpoints, watcher flow, inbox verification, and replay. |
+| Persistent receipt store | Planned | SQLite/Postgres adapter is a next-step production feature. |
+| Hosted dashboard | Planned | Analytics UI and managed ops surface are not part of the current MVP. |
+| Fastify/Hono/Python/Go adapters | Planned | Current framework adapters are Express and Next.js. |
+
+## Arc Receipts
+
+Arc Receipts is the main module in the current roadmap. It turns raw stablecoin payments into app-level payment operations.
+
+### The Problem
+
+A transfer is not enough for most apps. Builders need to know:
+
+- Which invoice was paid?
+- Which transaction memo connected the payment to app state?
+- Was the payment amount sufficient?
+- Which receipt should be stored?
+- Which webhook was sent?
+- Did the app verify the signature?
+- Can the webhook delivery be replayed during development?
+
+### The Local Flow
+
+```mermaid
+sequenceDiagram
+    participant App as Developer App
+    participant SDK as arc-nano-kit SDK
+    participant Arc as Arc Testnet
+    participant Inbox as Webhook Inbox
+
+    App->>SDK: create invoice
+    SDK->>App: invoice memo + payment request
+    App->>Arc: send USDC with memo
+    SDK->>Arc: watcher polls Memo events
+    Arc-->>SDK: matching memo + transfer
+    SDK->>SDK: generate receipt
+    SDK->>SDK: sign invoice.paid webhook
+    SDK->>Inbox: deliver signed payload
+    Inbox->>Inbox: verify signature
+    App->>Inbox: replay webhook
+    Inbox->>Inbox: new delivery attempt + fresh timestamp
+```
+
+### What This Proves
+
+The demo does not stop at "webhook ready". It shows verified delivery:
+
+- `receipt.generated`
+- raw webhook payload
+- `x-arc-signature`
+- SDK verification
+- delivery attempt `#1`
+- replayed delivery attempt `#2`
+- new `t=<timestamp>,v1=<hmac>` signature header
+
+## Quickstart
+
+### Install
+
+```bash
+npm install @arc-nano-kit/sdk
+```
+
+### Express Paid Endpoint
 
 ```typescript
 import express from 'express';
@@ -70,47 +150,61 @@ import { expressPaywall } from '@arc-nano-kit/sdk/middleware';
 
 const app = express();
 
-app.get('/api/premium/data',
-  expressPaywall({ price: '0.001', network: 'arc-testnet' }),
-  (req, res) => {
-    res.json({ data: 'This costs $0.001 USDC per request' });
-  }
+app.get(
+  '/api/premium/data',
+  expressPaywall({
+    price: '0.001',
+    network: 'arc-testnet',
+    payTo: '0x1111111111111111111111111111111111111111',
+  }),
+  (_req, res) => {
+    res.json({ data: 'This costs 0.001 USDC per request' });
+  },
 );
+
+app.listen(3000);
 ```
 
-**Next.js App Router:**
+### Next.js Route Handler
 
 ```typescript
 import { nextPaywall } from '@arc-nano-kit/sdk/middleware';
 
 export const GET = nextPaywall(
-  { price: '0.001', network: 'arc-testnet' },
-  async (request) => {
+  {
+    price: '0.001',
+    network: 'arc-testnet',
+    payTo: '0x1111111111111111111111111111111111111111',
+  },
+  async () => {
     return Response.json({ data: 'Premium content' });
-  }
+  },
 );
 ```
 
-### Buy Access to a Paywalled API
+### Buyer Client
 
 ```typescript
 import { BuyerClient } from '@arc-nano-kit/sdk/client';
 
 const buyer = new BuyerClient({
-  privateKey: process.env.BUYER_PRIVATE_KEY,
+  privateKey: process.env.BUYER_PRIVATE_KEY as `0x${string}`,
   rpcUrl: 'https://rpc.testnet.arc.network',
 });
 
-// Automatically handles 402 → sign EIP-3009 → retry
 const response = await buyer.request('https://api.example.com/api/premium/data');
-console.log(response.data);    // { data: 'Premium content' }
-console.log(response.payment); // { amount: '0.001', network: 'arc-testnet' }
+
+console.log(response.data);
+console.log(response.payment);
 ```
 
-### Create an Invoice and Receipt
+### Invoice, Receipt, and Signed Webhook
 
 ```typescript
-import { ReceiptLedger, signWebhookEvent } from '@arc-nano-kit/sdk/receipts';
+import {
+  ReceiptLedger,
+  signWebhookEvent,
+} from '@arc-nano-kit/sdk/receipts';
 
 const ledger = new ReceiptLedger();
 
@@ -122,8 +216,8 @@ const invoice = ledger.createInvoice({
   description: 'Pro plan subscription',
 });
 
-// Later, after your app observes the Arc payment:
 const receipt = ledger.recordPayment(invoice.id, {
+  from: '0x2222222222222222222222222222222222222222',
   to: invoice.payTo,
   amount: '19.00',
   memo: invoice.memo,
@@ -138,166 +232,112 @@ console.log(receipt.status);    // paid
 console.log(signature.header);  // t=...,v1=...
 ```
 
-## 🏗️ Architecture
-
-```mermaid
-graph TB
-    subgraph "Buyer Side"
-        A["🤖 AI Agent / Client App"]
-        B["@arc-nano-kit/sdk<br/>BuyerClient"]
-        C["Sign EIP-3009<br/>(gasless, off-chain)"]
-        A --> B --> C
-    end
-
-    subgraph "Seller Side"
-        D["🔌 Express / Next.js API"]
-        E["@arc-nano-kit/sdk<br/>PaywallMiddleware"]
-        F["📊 Usage Meter"]
-        G["💰 Billing Engine"]
-        D --> E --> F --> G
-    end
-
-    subgraph "Circle Infrastructure"
-        H["x402 Protocol<br/>HTTP 402"]
-        I["Gateway<br/>Batched Settlement"]
-        J["Arc Network<br/>Chain ID: 5042002"]
-        K["Unified Balance<br/>(Cross-Chain USDC)"]
-    end
-
-    A -->|"① GET /api/data"| D
-    E -->|"② 402 + payment requirements"| A
-    C -->|"③ Retry with X-PAYMENT header"| E
-    E -->|"④ Verify signature"| I
-    I -->|"⑤ Batch settle on-chain"| J
-    K -.->|"Fund balance"| I
-
-    style A fill:#1e1b4b,stroke:#6366f1,color:#c7d2fe
-    style D fill:#1e1b4b,stroke:#6366f1,color:#c7d2fe
-    style H fill:#0c0a09,stroke:#f59e0b,color:#fcd34d
-    style I fill:#0c0a09,stroke:#f59e0b,color:#fcd34d
-    style J fill:#0c0a09,stroke:#f59e0b,color:#fcd34d
-    style K fill:#0c0a09,stroke:#f59e0b,color:#fcd34d
-```
-
-### Payment Flow
-
-```
-Buyer                     arc-nano-kit (Seller)           Circle Gateway
-  │                              │                              │
-  │─── GET /api/data ───────────►│                              │
-  │                              │                              │
-  │◄── 402 + requirements ──────│                              │
-  │    (price, payTo, network)   │                              │
-  │                              │                              │
-  │ (sign EIP-3009 off-chain)    │                              │
-  │                              │                              │
-  │─── GET /api/data ───────────►│                              │
-  │    + X-PAYMENT header        │                              │
-  │                              │─── verify payment ──────────►│
-  │                              │◄── valid ────────────────────│
-  │                              │                              │
-  │◄── 200 + data ──────────────│                              │
-  │                              │     ... more requests ...    │
-  │                              │                              │
-  │                              │◄── batch settle on Arc ─────│
-```
-
-## 📦 Project Structure
-
-```
-arc-nano-kit/
-├── packages/
-│   └── sdk/                     # @arc-nano-kit/sdk
-│       ├── src/
-│       │   ├── middleware/       # Express & Next.js paywall middleware
-│       │   ├── client/          # Buyer SDK (auto 402 flow)
-│       │   ├── billing/         # Usage metering & pricing plans
-│       │   ├── gateway/         # Circle Gateway client
-│       │   ├── receipts/        # Invoices, memos, receipts, webhooks
-│       │   ├── types.ts         # Shared TypeScript types
-│       │   └── constants.ts     # Arc chain config
-│       └── package.json
-├── apps/
-│   └── demo/                    # Next.js demo app
-│       ├── src/app/
-│       │   ├── page.tsx         # Landing page
-│       │   └── api/             # Paywalled endpoints
-│       └── package.json
-├── docs/                        # Documentation
-│   ├── architecture.md
-│   ├── getting-started.md
-│   └── why-arc.md
-├── ROADMAP.md
-├── SECURITY.md
-├── CONTRIBUTING.md
-└── CHANGELOG.md
-```
-
-## 🔧 SDK Modules
-
-### Middleware (`@arc-nano-kit/sdk/middleware`)
-
-Framework adapters that gate your endpoints behind x402 paywalls:
+### Webhook Inbox + Replay
 
 ```typescript
-import { expressPaywall } from '@arc-nano-kit/sdk/middleware';
-import { nextPaywall } from '@arc-nano-kit/sdk/middleware';
-import { createPaywallMiddleware } from '@arc-nano-kit/sdk/middleware';
+import {
+  WebhookInbox,
+  serializeWebhookPayload,
+  signWebhookEvent,
+} from '@arc-nano-kit/sdk/receipts';
+
+const inbox = new WebhookInbox();
+const event = ledger.listWebhookEvents().at(-1)!;
+const signed = signWebhookEvent(event, process.env.ARC_WEBHOOK_SECRET!);
+
+const delivery = inbox.receive({
+  payload: serializeWebhookPayload(event),
+  header: signed.header,
+  secret: process.env.ARC_WEBHOOK_SECRET!,
+  target: 'https://seller.app/webhooks/arc',
+});
+
+const replay = inbox.replay({
+  event,
+  secret: process.env.ARC_WEBHOOK_SECRET!,
+  replayOf: delivery.id,
+});
+
+console.log(delivery.status); // verified
+console.log(replay.attempt);  // 2
 ```
 
-### Client (`@arc-nano-kit/sdk/client`)
+## Running The Demo
 
-Buyer SDK for consuming paywalled APIs — handles the full 402 flow:
+```bash
+git clone https://github.com/horn111/arc-nano-kit.git
+cd arc-nano-kit
+npm install
+npm run dev
+```
+
+Open [http://localhost:3000](http://localhost:3000).
+
+The demo includes:
+
+- paywalled API endpoint probes
+- invoice and memo payment data
+- Arc Testnet watcher flow simulation/API
+- generated receipt JSON
+- signed webhook payload
+- local Webhook Inbox verification
+- replayed webhook delivery attempt
+
+## CLI Scaffolder
+
+The repo includes a scaffolder package:
+
+```bash
+npm run build --workspace=packages/create-arc-nano-kit
+node packages/create-arc-nano-kit/dist/index.js my-paid-api
+```
+
+It can generate Express or Next.js starters with a paid API route and environment template.
+
+## SDK Modules
+
+### Middleware
+
+```typescript
+import {
+  createPaywallMiddleware,
+  expressPaywall,
+  nextPaywall,
+} from '@arc-nano-kit/sdk/middleware';
+```
+
+The default verifier checks payment payload structure, amount, recipient, and expiry. Production integrations can provide a custom `verifyPayment` function to delegate verification to the appropriate payment infrastructure.
+
+### Client
 
 ```typescript
 import { BuyerClient } from '@arc-nano-kit/sdk/client';
 ```
 
-### Billing (`@arc-nano-kit/sdk/billing`)
+The buyer client signs an authorization and retries the original request with an `x-payment` header after receiving a `402 Payment Required` response.
 
-Flexible pricing models and usage tracking:
+### Billing
 
 ```typescript
-import { createBillingPlan, UsageMeter } from '@arc-nano-kit/sdk/billing';
-
-// Per-request: $0.001 per API call
-const apiPlan = createBillingPlan({
-  name: 'API Standard',
-  pricing: { model: 'per-request', pricePerRequest: '0.001' },
-});
-
-// Per-second: $0.01/s for streaming compute
-const computePlan = createBillingPlan({
-  name: 'Compute',
-  pricing: { model: 'per-second', pricePerSecond: '0.01' },
-});
-
-// Per-job: $0.50 base + $0.001/MB
-const batchPlan = createBillingPlan({
-  name: 'Batch Processing',
-  pricing: { model: 'per-job', basePrice: '0.50', pricePerUnit: '0.001', unitName: 'MB' },
-});
+import { UsageMeter, createBillingPlan } from '@arc-nano-kit/sdk/billing';
 ```
 
-### Gateway (`@arc-nano-kit/sdk/gateway`)
+Billing helpers support:
 
-Circle Gateway unified balance management:
+- per-request pricing
+- per-second pricing
+- per-job pricing
+- in-memory usage summaries
+
+### Gateway / Balance Helpers
 
 ```typescript
 import { GatewayClient } from '@arc-nano-kit/sdk/gateway';
-
-const gateway = new GatewayClient({
-  walletAddress: '0x...',
-  rpcUrl: 'https://rpc.testnet.arc.network',
-});
-
-const balance = await gateway.getBalance();
-console.log(`Balance: ${balance.available} USDC`);
 ```
 
-### Receipts (`@arc-nano-kit/sdk/receipts`)
+The current Gateway client is intentionally small: it checks Arc Testnet native USDC balance, formats explorer links, and provides sufficient-balance checks. Deposit tracking, pending settlement state, and alerts are planned.
 
-Invoice, transaction memo, watcher, receipt, and signed webhook helpers for Arc payment workflows:
+### Receipts
 
 ```typescript
 import {
@@ -306,112 +346,133 @@ import {
   WebhookInbox,
   createInvoiceMemo,
   createMemoPaymentRequest,
+  signWebhookEvent,
   verifyWebhookSignature,
 } from '@arc-nano-kit/sdk/receipts';
 ```
 
-`WebhookInbox` lets local apps receive a signed `invoice.paid` webhook, verify the signature, store the delivery attempt, and replay the same event while developing payment operations.
+Receipts are the strongest current module and the center of near-term development.
 
-## 🌐 Why Arc?
+## Project Structure
 
-Arc is Circle's Layer 1 blockchain — purpose-built for stablecoin-native finance. Here's why it's the ideal foundation for usage-based billing:
+```text
+arc-nano-kit/
+├── apps/
+│   └── demo/
+│       ├── src/app/page.tsx
+│       └── src/app/api/
+│           ├── joke/
+│           ├── weather/
+│           ├── receipts/
+│           └── webhook-inbox/
+├── packages/
+│   ├── sdk/
+│   │   └── src/
+│   │       ├── billing/
+│   │       ├── client/
+│   │       ├── gateway/
+│   │       ├── middleware/
+│   │       └── receipts/
+│   └── create-arc-nano-kit/
+│       └── src/
+├── docs/
+│   ├── architecture.md
+│   ├── getting-started.md
+│   ├── receipts.md
+│   └── why-arc.md
+├── ROADMAP.md
+└── CHANGELOG.md
+```
 
-| Feature | Arc | Ethereum | Base | Solana |
-|---------|-----|----------|------|--------|
-| **Gas Token** | USDC | ETH | ETH | SOL |
-| **Finality** | <1s deterministic | ~12min | ~2s | ~0.4s |
-| **Min Payment** | $0.000001 | ~$0.50 | ~$0.001 | ~$0.001 |
-| **Gas per Tx** | ~$0.001 | ~$1-50 | ~$0.01 | ~$0.0001 |
-| **USDC Native** | ✅ | ❌ | ❌ | ❌ |
-| **Nanopayments** | Native | Via L2 | Via x402 | Via x402 |
+## Why Arc
 
-**Key advantages:**
-- **USDC as gas** — No volatile assets needed. Dollar-denominated, predictable costs.
-- **Sub-second finality** — Malachite BFT consensus. Deterministic, no reorgs.
-- **Nanopayments** — Gasless payments as small as $0.000001 via Gateway batched settlement.
-- **Agent-first** — Built for autonomous AI agents with policy-controlled wallets and x402.
+Arc is a stablecoin-native Layer 1 from Circle, currently live on public testnet. It is designed around real-world financial flows: predictable dollar-based transaction costs, deterministic finality, and integration with Circle infrastructure such as USDC, CCTP, and Gateway.
 
-## 🔗 Circle Integrations
+That makes Arc a natural environment for:
 
-arc-nano-kit leverages the full Circle stack:
+- paid APIs
+- autonomous agent payments
+- usage-based billing
+- stablecoin receipts
+- application-level reconciliation
+- payment operations that need fast settlement and predictable costs
 
-| Integration | Package | Usage |
-|-------------|---------|-------|
-| **Nanopayments** | `@circle-fin/x402-batching` | Gasless off-chain payment signing & batch settlement |
-| **x402 Protocol** | `@x402/core`, `@x402/evm` | HTTP 402 payment standard implementation |
-| **Gateway** | `@circle-fin/unified-balance-kit` | Cross-chain unified USDC balance |
-| **App Kit** | `@circle-fin/app-kit` | Bridge, swap, and monetization features |
-| **Arc Network** | `viem` | EVM-compatible chain interaction (Chain ID: 5042002) |
+`arc-nano-kit` focuses on the developer tooling around those workflows.
 
-## 📊 Comparison with Official Sample Apps
+## Current Limits
 
-| Feature | `arc-nanopayments` | **arc-nano-kit** |
-|---------|-------------------|------------------|
-| **Scope** | Reference demo | Production middleware |
-| **Reusability** | Fork & modify | `npm install` & configure |
-| **Middleware** | Built-in to demo | Framework-agnostic, pluggable |
-| **Buyer SDK** | LangChain agent | Standalone TypeScript client |
-| **Billing** | None | Per-request / per-second / per-job |
-| **Usage Tracking** | None | Built-in metering & analytics |
-| **Multi-Framework** | Next.js only | Express, Next.js, Fastify (planned) |
-| **Target** | Developers learning | Developers shipping |
+This repo is still early. The current implementation is useful for local development, demos, and SDK iteration, but several production pieces are intentionally not finished yet:
 
-> `arc-nanopayments` is Circle's excellent reference implementation. arc-nano-kit builds on the same primitives to provide a **production-ready SDK** that developers can integrate into their own applications.
+- no persistent receipt database
+- no persistent watcher cursor
+- no hosted dashboard
+- no managed webhook queue
+- no Fastify/Hono/Python/Go adapters yet
+- no default production Gateway verification path without a custom verifier
+- refund and partial refund accounting are planned, not shipped
 
-## 🛡️ Arc Network Details
+## Roadmap
 
-| Parameter | Value |
-|-----------|-------|
-| Network | Arc Testnet |
-| Chain ID | `5042002` |
-| RPC URL | `https://rpc.testnet.arc.network` |
-| Block Explorer | [testnet.arcscan.app](https://testnet.arcscan.app) |
-| Faucet | [faucet.circle.com](https://faucet.circle.com) |
-| Gas Token | USDC |
-| Consensus | Malachite BFT (<1s finality) |
-| CCTP Domain | 26 |
-| Mainnet ETA | Summer 2026 |
+### Shipped
 
-## 🗺️ Roadmap
+- Express and Next.js paywall middleware
+- Buyer SDK
+- billing plans and usage metering
+- invoice and transaction memo helpers
+- Arc Testnet receipt watcher
+- signed webhook helpers
+- local Webhook Inbox + Replay
+- local Next.js demo
+- repo-local CLI scaffolder
 
-| Phase | Timeline | Key Deliverables | Status |
-|-------|----------|------------------|--------|
-| **Foundation** | Weeks 1-2 | SDK middleware, buyer client, billing engine, demo app | ✅ In Progress |
-| **Production** | Weeks 3-4 | Arc Receipts, Arc Testnet watcher, usage dashboard, Gateway helpers, CLI scaffolding | 🔜 Next |
-| **Ecosystem** | Months 2-3 | Multi-framework, agent commerce, Arc Mainnet | 📋 Planned |
+### Next
 
-See [ROADMAP.md](ROADMAP.md) for the detailed feature roadmap.
+- persistent receipt store
+- persistent watcher cursor
+- Next.js webhook route helpers
+- refund and partial refund states
+- stronger Gateway readiness helpers
+- cleaner hosted demo flow
 
-## 🤝 Contributing
+### Later
 
-We welcome contributions from the community! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+- dashboard and analytics
+- Fastify and Hono adapters
+- Python and Go SDKs
+- hosted payment ops surface
+- agent commerce workflows
+
+## Development
 
 ```bash
-# Development setup
-git clone https://github.com/horn111/arc-nano-kit.git
-cd arc-nano-kit
 npm install
+npm run typecheck
+npm run test --workspaces --if-present -- --reporter=dot
 npm run dev
 ```
 
-## 🔒 Security
+## Contributing
 
-For security concerns, please see [SECURITY.md](SECURITY.md). Do **not** report security vulnerabilities through public GitHub issues.
+Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md).
 
-## 📄 License
+## Security
 
-This project is licensed under the [Apache License 2.0](LICENSE) — the same license used by Circle's official open-source projects.
+For security concerns, see [SECURITY.md](SECURITY.md). Do not report security vulnerabilities through public GitHub issues.
+
+## License
+
+Apache-2.0. See [LICENSE](LICENSE).
 
 ---
 
 <p align="center">
-  <strong>Built on <a href="https://arc.network">Arc</a> · Powered by <a href="https://developers.circle.com">Circle</a> · Protocol: <a href="https://x402.org">x402</a></strong>
+  <strong>Built for <a href="https://www.arc.io">Arc</a> · Powered by <a href="https://developers.circle.com">Circle</a> primitives · Compatible with <a href="https://x402.org">x402</a> payment flows</strong>
 </p>
 
 <p align="center">
   <sub>
     arc-nano-kit is an independent open-source project and is not officially affiliated with Circle Internet Financial.
-    <br/>
+    <br />
     Circle, USDC, and Arc are trademarks of Circle Internet Financial, LLC.
   </sub>
 </p>
