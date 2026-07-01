@@ -1,24 +1,24 @@
 # Getting Started
 
-This guide walks you through setting up arc-nano-kit for both seller (API provider) and buyer (API consumer) use cases.
+This guide shows the current `arc-nano-kit` developer workflow: paid API middleware, buyer-side access, and the local Arc Receipts demo.
 
 ## Prerequisites
 
-- **Node.js** >= 20.0.0
-- **npm** >= 10.0.0
-- **Arc Testnet USDC** — Get testnet tokens from [Circle Faucet](https://faucet.circle.com)
+- Node.js >= 20.0.0
+- npm >= 10.0.0
+- A wallet private key if you want to test buyer-side signing against your own endpoints
 
-## Quick Start (Seller)
+The local demo does not require a hosted dashboard, database, or production webhook queue.
 
-### 1. Install the SDK
+## Install The SDK
 
 ```bash
 npm install @arc-nano-kit/sdk
 ```
 
-### 2. Create a Paywalled Endpoint
+## Seller: Protect An Endpoint
 
-**Express.js:**
+### Express
 
 ```typescript
 import express from 'express';
@@ -26,23 +26,23 @@ import { expressPaywall } from '@arc-nano-kit/sdk/middleware';
 
 const app = express();
 
-// Protect an endpoint — $0.001 per request
 app.get(
   '/api/premium/data',
   expressPaywall({
-    price: '0.001',       // USDC per request
+    price: '0.001',
     network: 'arc-testnet',
+    payTo: '0x1111111111111111111111111111111111111111',
     description: 'Premium data endpoint',
   }),
-  (req, res) => {
-    res.json({ data: 'This is premium content!' });
-  }
+  (_req, res) => {
+    res.json({ data: 'This is premium content.' });
+  },
 );
 
 app.listen(3000);
 ```
 
-**Next.js (App Router):**
+### Next.js App Router
 
 ```typescript
 import { nextPaywall } from '@arc-nano-kit/sdk/middleware';
@@ -51,71 +51,81 @@ export const GET = nextPaywall(
   {
     price: '0.001',
     network: 'arc-testnet',
+    payTo: '0x1111111111111111111111111111111111111111',
     description: 'Premium joke endpoint',
   },
-  async (request) => {
-    return Response.json({ joke: 'Why did the USDC cross the chain? To get to the Arc side!' });
-  }
+  async () => {
+    return Response.json({ joke: 'Paid API response from Arc.' });
+  },
 );
 ```
 
-### 3. Set Up Environment Variables
+The default verifier checks payment payload structure, amount, recipient, and expiry. Production apps should provide a custom `verifyPayment` implementation for their verification infrastructure.
 
-```bash
-# Seller wallet (receives payments)
-SELLER_PRIVATE_KEY=0x...
-SELLER_ADDRESS=0x...
-
-# Arc Testnet
-ARC_RPC_URL=https://rpc.testnet.arc.network
-CHAIN_ID=5042002
-```
-
-## Quick Start (Buyer)
-
-### 1. Install the SDK
-
-```bash
-npm install @arc-nano-kit/sdk
-```
-
-### 2. Pay for API Access
+## Buyer: Access A Paywalled API
 
 ```typescript
 import { BuyerClient } from '@arc-nano-kit/sdk/client';
 
 const buyer = new BuyerClient({
-  privateKey: process.env.BUYER_PRIVATE_KEY!,
+  privateKey: process.env.BUYER_PRIVATE_KEY as `0x${string}`,
   rpcUrl: 'https://rpc.testnet.arc.network',
 });
 
-// Automatically handles 402 → sign → retry
 const response = await buyer.request('https://api.example.com/api/premium/data');
-console.log(response.data); // { data: 'This is premium content!' }
+
+console.log(response.data);
+console.log(response.payment);
 ```
 
-## Running the Demo
+## Run The Local Demo
 
 ```bash
-# Clone the repo
 git clone https://github.com/horn111/arc-nano-kit.git
 cd arc-nano-kit
-
-# Install dependencies
 npm install
-
-# Configure environment
-cp apps/demo/.env.example apps/demo/.env.local
-# Edit .env.local with your wallet keys
-
-# Start the demo
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) to see the demo dashboard.
+Open [http://localhost:3000](http://localhost:3000).
 
-## What's Next?
+The demo currently shows:
 
-- [Architecture Overview](architecture.md) — Understand the system design
-- [Why Arc?](why-arc.md) — Learn why Arc is ideal for usage-based billing
-- [API Reference](https://github.com/horn111/arc-nano-kit/tree/main/packages/sdk) — Full SDK documentation
+- paywalled API endpoint probes;
+- invoice and memo payment data;
+- Arc Testnet watcher flow;
+- generated receipt JSON;
+- signed webhook payload;
+- local Webhook Inbox verification;
+- replayed webhook delivery attempt.
+
+## Verify The Arc Receipts Flow
+
+In the browser:
+
+1. Click `Run Watcher Flow`.
+2. Confirm `Generated Receipt` shows a paid receipt payload.
+3. Confirm `Webhook Inbox` shows `Received`, `Verified`, and `Signature OK`.
+4. Click `Replay Webhook`.
+5. Confirm `Delivery attempt #2` appears with a fresh `t=<timestamp>` signature value.
+
+For a detailed reviewer script, see [demo-script.md](demo-script.md).
+
+## Use The CLI Scaffolder
+
+From this repo:
+
+```bash
+npm run build --workspace=packages/create-arc-nano-kit
+node packages/create-arc-nano-kit/dist/index.js my-paid-api
+```
+
+The scaffolder creates an Express or Next.js starter with a paid API route and environment template.
+
+## Next Reading
+
+- [Grant Snapshot](grant.md)
+- [Demo Script](demo-script.md)
+- [Architecture](architecture.md)
+- [Arc Receipts](receipts.md)
+- [Why Arc?](why-arc.md)

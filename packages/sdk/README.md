@@ -1,10 +1,8 @@
 # @arc-nano-kit/sdk
 
-> Usage-based billing and paid API middleware for Arc — powered by Circle Nanopayments & x402
+Core SDK package for `arc-nano-kit`.
 
-This is the core SDK package of [arc-nano-kit](https://github.com/horn111/arc-nano-kit). See the root README for full documentation.
-
-It includes paid API middleware, buyer SDK helpers, usage billing, invoices, receipt watchers, receipts, and signed webhooks for Arc payment workflows.
+It includes paid API middleware, buyer SDK helpers, billing helpers, Arc Receipts, watcher logic, signed webhooks, and local webhook inbox replay for Arc payment workflows.
 
 ## Installation
 
@@ -12,9 +10,7 @@ It includes paid API middleware, buyer SDK helpers, usage billing, invoices, rec
 npm install @arc-nano-kit/sdk
 ```
 
-## Quick Start
-
-### Seller (Paywall an API)
+## Seller: Paywall An API
 
 ```typescript
 import express from 'express';
@@ -22,26 +18,47 @@ import { expressPaywall } from '@arc-nano-kit/sdk/middleware';
 
 const app = express();
 
-app.get('/api/data', expressPaywall({ price: '0.001' }), (req, res) => {
-  res.json({ data: 'premium content' });
-});
+app.get(
+  '/api/data',
+  expressPaywall({
+    price: '0.001',
+    network: 'arc-testnet',
+    payTo: '0x1111111111111111111111111111111111111111',
+  }),
+  (_req, res) => {
+    res.json({ data: 'premium content' });
+  },
+);
 ```
 
-### Buyer (Pay for API access)
+The default verifier checks payment payload structure, amount, recipient, and expiry. Production apps can provide a custom `verifyPayment` function.
+
+## Buyer: Pay For API Access
 
 ```typescript
 import { BuyerClient } from '@arc-nano-kit/sdk/client';
 
-const buyer = new BuyerClient({ privateKey: '0x...' });
+const buyer = new BuyerClient({
+  privateKey: '0x...',
+  rpcUrl: 'https://rpc.testnet.arc.network',
+});
+
 const response = await buyer.request('https://api.example.com/data');
+console.log(response.data);
 ```
 
-### Payment Ops (Create an invoice and receipt)
+## Payment Ops: Receipt And Webhook Replay
 
 ```typescript
-import { ReceiptLedger } from '@arc-nano-kit/sdk/receipts';
+import {
+  ReceiptLedger,
+  WebhookInbox,
+  serializeWebhookPayload,
+  signWebhookEvent,
+} from '@arc-nano-kit/sdk/receipts';
 
 const ledger = new ReceiptLedger();
+
 const invoice = ledger.createInvoice({
   id: 'inv_123',
   amount: '19.00',
@@ -49,22 +66,58 @@ const invoice = ledger.createInvoice({
 });
 
 const receipt = ledger.recordPayment(invoice.id, {
+  from: '0x2222222222222222222222222222222222222222',
   to: invoice.payTo,
   amount: '19.00',
   memo: invoice.memo,
+  txHash: '0xabc' as `0x${string}`,
 });
+
+const event = ledger.listWebhookEvents().at(-1)!;
+const signed = signWebhookEvent(event, 'secret');
+
+const inbox = new WebhookInbox();
+const delivery = inbox.receive({
+  payload: serializeWebhookPayload(event),
+  header: signed.header,
+  secret: 'secret',
+});
+
+const replay = inbox.replay({
+  event,
+  secret: 'secret',
+  replayOf: delivery.id,
+});
+
+console.log(receipt.status);   // paid
+console.log(delivery.status);  // verified
+console.log(replay.attempt);   // 2
 ```
 
 ## Modules
 
 | Module | Import | Description |
 |--------|--------|-------------|
-| Middleware | `@arc-nano-kit/sdk/middleware` | Express & Next.js paywall middleware |
-| Client | `@arc-nano-kit/sdk/client` | Buyer SDK for automated x402 payments |
-| Billing | `@arc-nano-kit/sdk/billing` | Usage metering & billing plans |
-| Gateway | `@arc-nano-kit/sdk/gateway` | Circle Gateway balance management |
-| Receipts | `@arc-nano-kit/sdk/receipts` | Invoices, memos, Arc Testnet watcher, receipts, signed webhooks, webhook inbox replay |
+| Middleware | `@arc-nano-kit/sdk/middleware` | Express and Next.js paywall middleware |
+| Client | `@arc-nano-kit/sdk/client` | Buyer SDK for `402 -> sign -> retry` flows |
+| Billing | `@arc-nano-kit/sdk/billing` | Usage metering and billing plans |
+| Gateway | `@arc-nano-kit/sdk/gateway` | Small Arc Testnet balance helper |
+| Receipts | `@arc-nano-kit/sdk/receipts` | Invoices, memos, watcher, receipts, signed webhooks, inbox replay |
+
+## Current Limits
+
+- Receipt storage is in-memory.
+- Webhook delivery attempts are in-memory.
+- Watcher cursors are not persisted yet.
+- Gateway helpers do not yet include deposit tracking or pending settlement state.
+
+## Docs
+
+- [Root README](../../README.md)
+- [Grant Snapshot](../../docs/grant.md)
+- [Demo Script](../../docs/demo-script.md)
+- [Arc Receipts](../../docs/receipts.md)
 
 ## License
 
-Apache-2.0 — see [LICENSE](../../LICENSE)
+Apache-2.0. See [LICENSE](../../LICENSE).

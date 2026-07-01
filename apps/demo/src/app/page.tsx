@@ -135,6 +135,13 @@ const pendingTimeline: TimelineItem[] = [
   { id: 'receipt', label: 'receipt.generated', detail: 'Awaiting transaction confirmations.' },
 ];
 
+const reviewerSteps = [
+  'Run Watcher Flow',
+  'Inspect receipt',
+  'Verify webhook inbox',
+  'Replay delivery',
+];
+
 export default function HomePage() {
   const [receiptDemo, setReceiptDemo] = useState<ReceiptDemo | null>(null);
   const [receiptLoading, setReceiptLoading] = useState(false);
@@ -155,6 +162,33 @@ export default function HomePage() {
   const highlightedFacts = receiptDemo
     ? ['invoice', 'amount', 'contract', 'memoId', 'hash']
     : [];
+  const proofPoints = [
+    {
+      label: 'Memo payment request',
+      detail: 'invoice id, memo contract, memo id',
+      done: Boolean(receiptDemo?.paymentRequest.memoId),
+    },
+    {
+      label: 'Watcher matched payment',
+      detail: 'memo event linked to invoice',
+      done: completedSteps.includes('watch'),
+    },
+    {
+      label: 'Receipt generated',
+      detail: 'paid receipt stored locally',
+      done: Boolean(receiptDemo?.receipt.id),
+    },
+    {
+      label: 'Webhook signature verified',
+      detail: 'local inbox accepted x-arc-signature',
+      done: Boolean(webhookDeliveries[0]?.verified),
+    },
+    {
+      label: 'Replay creates attempt #2',
+      detail: 'fresh signature timestamp',
+      done: webhookDeliveries.some((delivery) => delivery.attempt >= 2),
+    },
+  ];
 
   const runReceiptDemo = async () => {
     setReceiptLoading(true);
@@ -302,17 +336,67 @@ export default function HomePage() {
       <div className="container">
         <header className="header">
           <div className="header-left">
+            <p className="header-kicker">Grant-ready local proof</p>
             <h1>
-              Arc Watcher <span className="header-tag">Nano Kit</span>
+              Arc Receipts <span className="header-tag">Ops Demo</span>
             </h1>
+            <p className="header-copy">
+              invoice -&gt; memo -&gt; watcher -&gt; receipt -&gt; verified webhook -&gt; replay
+            </p>
           </div>
-          <a className="repo-link" href="https://github.com/horn111/arc-nano-kit">
-            <svg aria-hidden="true" width="14" height="14" fill="currentColor" viewBox="0 0 16 16">
-              <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z" />
-            </svg>
-            Star Repo
-          </a>
+          <div className="resource-links" aria-label="Project resources">
+            <a className="resource-link" href="https://github.com/horn111/arc-nano-kit/blob/main/docs/grant.md">
+              Grant Snapshot
+            </a>
+            <a className="resource-link" href="https://github.com/horn111/arc-nano-kit/blob/main/docs/demo-script.md">
+              Demo Script
+            </a>
+            <a className="repo-link" href="https://github.com/horn111/arc-nano-kit">
+              <svg aria-hidden="true" width="14" height="14" fill="currentColor" viewBox="0 0 16 16">
+                <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z" />
+              </svg>
+              Star Repo
+            </a>
+          </div>
         </header>
+
+        <section className="reviewer-grid">
+          <div className="panel reviewer-panel">
+            <div>
+              <p className="eyebrow">Reviewer Path</p>
+              <h2 className="panel-title">Four clicks to verify the grant proof</h2>
+            </div>
+            <ol className="reviewer-steps">
+              {reviewerSteps.map((step, index) => (
+                <li key={step}>
+                  <span>{String(index + 1).padStart(2, '0')}</span>
+                  <strong>{step}</strong>
+                </li>
+              ))}
+            </ol>
+          </div>
+
+          <div className="panel proof-panel">
+            <div>
+              <p className="eyebrow">Proof Points</p>
+              <h2 className="panel-title">What this demo proves</h2>
+            </div>
+            <div className="proof-grid">
+              {proofPoints.map((point) => (
+                <div className={`proof-item ${point.done ? 'done' : ''}`} key={point.label}>
+                  <span className="proof-state">{point.done ? 'verified' : 'pending'}</span>
+                  <strong>{point.label}</strong>
+                  <p>{point.detail}</p>
+                </div>
+              ))}
+            </div>
+            <div className="proof-summary">
+              <span>Grant proof</span>
+              <strong>local, replayable payment ops for Arc receipts</strong>
+              <p>Run the flow once, then replay the signed webhook to prove delivery state without a dashboard.</p>
+            </div>
+          </div>
+        </section>
 
         <section className="dashboard-grid">
           <div className="panel">
@@ -609,6 +693,29 @@ export default function HomePage() {
           border-bottom: 1px solid var(--border-color);
         }
 
+        .header-left {
+          max-width: 720px;
+        }
+
+        .header-kicker {
+          margin-bottom: 10px;
+          color: var(--pale-blue-text);
+          font-family: JetBrains Mono, Geist Mono, SFMono-Regular, Consolas, monospace;
+          font-size: 12px;
+          font-weight: 600;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+        }
+
+        .header-copy {
+          max-width: 680px;
+          margin-top: 14px;
+          color: var(--text-muted);
+          font-family: JetBrains Mono, Geist Mono, SFMono-Regular, Consolas, monospace;
+          font-size: 13px;
+          overflow-wrap: anywhere;
+        }
+
         h1,
         h2,
         p {
@@ -639,6 +746,14 @@ export default function HomePage() {
           vertical-align: middle;
         }
 
+        .resource-links {
+          display: flex;
+          flex-wrap: wrap;
+          justify-content: flex-end;
+          gap: 10px;
+        }
+
+        .resource-link,
         .repo-link {
           display: inline-flex;
           align-items: center;
@@ -654,8 +769,23 @@ export default function HomePage() {
           transition: opacity 0.2s ease;
         }
 
+        .resource-link {
+          border: 1px solid var(--border-color);
+          background: var(--bg-surface);
+          color: var(--text-main);
+        }
+
+        .resource-link:hover,
         .repo-link:hover {
           opacity: 0.86;
+        }
+
+        .reviewer-grid {
+          display: grid;
+          grid-template-columns: minmax(280px, 0.78fr) minmax(0, 1.22fr);
+          gap: 24px;
+          align-items: stretch;
+          margin-bottom: 24px;
         }
 
         .dashboard-grid,
@@ -685,6 +815,144 @@ export default function HomePage() {
           border-radius: 8px;
           background: var(--bg-surface);
           overflow: hidden;
+        }
+
+        .reviewer-panel,
+        .proof-panel {
+          display: flex;
+          min-height: 0;
+          flex-direction: column;
+          gap: 24px;
+        }
+
+        .reviewer-panel {
+          height: auto;
+        }
+
+        .proof-panel {
+          justify-content: space-between;
+        }
+
+        .reviewer-steps {
+          display: grid;
+          gap: 10px;
+          margin: 0;
+          padding: 0;
+          list-style: none;
+        }
+
+        .reviewer-steps li {
+          display: grid;
+          grid-template-columns: 34px minmax(0, 1fr);
+          gap: 12px;
+          align-items: center;
+          min-height: 42px;
+          padding: 9px 0;
+          border-bottom: 1px solid var(--border-color);
+        }
+
+        .reviewer-steps li:last-child {
+          border-bottom: 0;
+        }
+
+        .reviewer-steps span,
+        .reviewer-steps strong,
+        .proof-state,
+        .proof-item strong {
+          font-family: JetBrains Mono, Geist Mono, SFMono-Regular, Consolas, monospace;
+        }
+
+        .reviewer-steps span {
+          color: var(--pale-blue-text);
+          font-size: 12px;
+        }
+
+        .reviewer-steps strong {
+          color: var(--text-main);
+          font-size: 13px;
+          font-weight: 500;
+        }
+
+        .proof-grid {
+          display: grid;
+          grid-template-columns: repeat(5, minmax(0, 1fr));
+          gap: 8px;
+        }
+
+        .proof-item {
+          min-width: 0;
+          min-height: 132px;
+          padding: 12px;
+          border: 1px solid var(--border-color);
+          border-radius: 8px;
+          background: var(--bg-canvas);
+        }
+
+        .proof-item.done {
+          border-color: rgba(129, 201, 149, 0.52);
+          background: var(--pale-green);
+        }
+
+        .proof-state {
+          display: block;
+          margin-bottom: 10px;
+          color: var(--text-muted);
+          font-size: 10px;
+          text-transform: uppercase;
+        }
+
+        .proof-item.done .proof-state {
+          color: var(--pale-green-text);
+        }
+
+        .proof-item strong {
+          display: block;
+          margin-bottom: 6px;
+          color: var(--text-main);
+          font-size: 12px;
+          font-weight: 600;
+          line-height: 1.35;
+        }
+
+        .proof-item p {
+          color: var(--text-muted);
+          font-size: 12px;
+          line-height: 1.45;
+        }
+
+        .proof-summary {
+          margin-top: 10px;
+          padding: 14px;
+          border: 1px solid rgba(138, 180, 248, 0.24);
+          border-radius: 8px;
+          background: var(--pale-blue);
+        }
+
+        .proof-summary span,
+        .proof-summary strong {
+          display: block;
+          font-family: JetBrains Mono, Geist Mono, SFMono-Regular, Consolas, monospace;
+        }
+
+        .proof-summary span {
+          margin-bottom: 5px;
+          color: var(--pale-blue-text);
+          font-size: 10px;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+        }
+
+        .proof-summary strong {
+          margin-bottom: 5px;
+          color: var(--text-main);
+          font-size: 12px;
+          font-weight: 600;
+        }
+
+        .proof-summary p {
+          color: var(--text-muted);
+          font-size: 12px;
+          line-height: 1.45;
         }
 
         .panel-header {
@@ -1319,6 +1587,14 @@ export default function HomePage() {
         }
 
         @media (max-width: 991px) {
+          .reviewer-grid {
+            grid-template-columns: 1fr;
+          }
+
+          .proof-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+          }
+
           .dashboard-grid {
             grid-template-columns: 1fr;
           }
@@ -1346,10 +1622,29 @@ export default function HomePage() {
             margin-bottom: 32px;
           }
 
+          .resource-links {
+            justify-content: flex-start;
+            width: 100%;
+          }
+
+          .resource-link,
+          .repo-link {
+            width: 100%;
+            justify-content: center;
+          }
+
           .data-grid,
           .endpoint-grid,
           .console-split {
             grid-template-columns: 1fr;
+          }
+
+          .proof-grid {
+            grid-template-columns: 1fr;
+          }
+
+          .proof-item {
+            min-height: auto;
           }
 
           .panel {
