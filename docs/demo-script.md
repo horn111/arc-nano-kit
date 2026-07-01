@@ -28,17 +28,46 @@ Open [http://localhost:3000](http://localhost:3000).
    - Expected fields: invoice id, amount, memo contract, memo id, call data hash.
 5. Inspect `Generated Receipt`.
    - Expected proof: paid receipt JSON with tx hash, payer, and invoice memo.
-6. Inspect `Webhook Inbox`.
+6. Inspect `Onchain Proof`.
+   - Expected status before a live tx hash: pending.
+   - Expected fields: transaction hash input, chain id, block, memo index, log index, and proof JSON.
+7. Inspect `Webhook Inbox`.
    - Expected status: `Received` is `yes`.
    - Expected status: `Verified` is `yes`.
    - Expected status: `Signature` is `OK`.
    - Expected event: `Delivery attempt #1`.
-7. Click `Replay Webhook`.
-8. Confirm the inbox now shows:
+8. Click `Replay Webhook`.
+9. Confirm the inbox now shows:
    - `Attempts` is `2`;
    - `Delivery attempt #2`;
    - `Signature OK`;
    - a fresh `t=<timestamp>` in the signature header.
+
+## Optional Arc Testnet Proof
+
+This step is optional and read-only from the demo. The demo never asks for a private key and never broadcasts a transaction.
+
+1. Run the local demo.
+2. Click `Run Watcher Flow`.
+3. Inspect `Memo Payment Data`.
+4. From your own funded Arc Testnet EOA, send USDC through the Arc Memo contract using the generated:
+   - memo contract;
+   - target;
+   - memo id;
+   - memo data;
+   - tx data.
+5. Copy the resulting Arc Testnet transaction hash.
+6. Paste it into `Onchain Proof`.
+7. Click `Verify Arc Testnet Tx`.
+
+Expected proof points:
+
+- `Chain ID` is `5042002`;
+- `Block` is populated;
+- `Memo Index` is populated;
+- `Log Index` is populated;
+- `View on Arcscan` opens the verified transaction;
+- proof JSON includes `txHash`, `memoId`, `callDataHash`, `payer`, `payTo`, and `explorerUrl`.
 
 ## What The Demo Proves
 
@@ -49,6 +78,7 @@ create invoice
 build memo payment request
 watch Arc Testnet payment shape
 generate receipt
+optionally verify a real Arc Testnet tx proof
 sign invoice.paid webhook
 deliver signed payload
 verify signature locally
@@ -57,6 +87,8 @@ replay webhook with fresh timestamp
 ```
 
 The important proof is not only that a receipt object exists. The demo proves verified webhook delivery and replay, which is the operational layer apps need after payment.
+
+The optional onchain proof path connects the same receipt shape to a concrete Arc Testnet transaction, block, Memo event, and Arcscan link.
 
 ## API Fallback Check
 
@@ -121,5 +153,6 @@ replayOf: <first delivery id>
 ## Notes For Grant Reviewers
 
 - The inbox is intentionally in-memory for the current milestone.
+- Onchain proof mode is read-only and does not send transactions.
 - Persistence, watcher cursors, webhook route helpers, and refund states are planned grant milestones.
 - The current demo is designed to prove the local developer workflow, not to replace a production payment processor or hosted dashboard.

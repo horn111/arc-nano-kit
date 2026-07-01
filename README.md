@@ -80,8 +80,9 @@ This is not a hosted dashboard or production queue yet. It is a developer-facing
 | CLI scaffolder | Ready in repo | `packages/create-arc-nano-kit` generates Express or Next.js paid API starters. |
 | Arc Receipts | Ready | Invoices, memos, receipts, signed webhook events, and in-memory ledger. |
 | Arc Testnet watcher | Ready | Watches memo-wrapped USDC payments and records matching receipts locally. |
+| Arc Testnet proof mode | Ready | Verifies a pasted tx hash against a memo payment request and returns block/log proof. |
 | Webhook Inbox + Replay | Ready | Verifies signed webhook delivery attempts and replays events locally. |
-| Demo app | Ready locally | Next.js demo with paid endpoints, watcher flow, inbox verification, and replay. |
+| Demo app | Ready locally | Next.js demo with paid endpoints, watcher flow, onchain proof, inbox verification, and replay. |
 | Persistent receipt store | Planned | SQLite/Postgres adapter is a next-step production feature. |
 | Hosted dashboard | Planned | Analytics UI and managed ops surface are not part of the current MVP. |
 | Fastify/Hono/Python/Go adapters | Planned | Current framework adapters are Express and Next.js. |
@@ -116,6 +117,7 @@ sequenceDiagram
     App->>Arc: send USDC with memo
     SDK->>Arc: watcher polls Memo events
     Arc-->>SDK: matching memo + transfer
+    SDK->>Arc: verify tx receipt proof
     SDK->>SDK: generate receipt
     SDK->>SDK: sign invoice.paid webhook
     SDK->>Inbox: deliver signed payload
@@ -129,6 +131,7 @@ sequenceDiagram
 The demo does not stop at "webhook ready". It shows verified delivery:
 
 - `receipt.generated`
+- optional `onchainProof` with tx hash, block, log index, and Arcscan link
 - raw webhook payload
 - `x-arc-signature`
 - SDK verification
@@ -349,6 +352,7 @@ import {
   createInvoiceMemo,
   createMemoPaymentRequest,
   signWebhookEvent,
+  verifyMemoPaymentProof,
   verifyWebhookSignature,
 } from '@arc-nano-kit/sdk/receipts';
 ```

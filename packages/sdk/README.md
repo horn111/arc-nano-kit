@@ -2,7 +2,7 @@
 
 Core SDK package for `arc-nano-kit`.
 
-It includes paid API middleware, buyer SDK helpers, billing helpers, Arc Receipts, watcher logic, signed webhooks, and local webhook inbox replay for Arc payment workflows.
+It includes paid API middleware, buyer SDK helpers, billing helpers, Arc Receipts, watcher logic, read-only Arc Testnet proof verification, signed webhooks, and local webhook inbox replay for Arc payment workflows.
 
 ## Installation
 
@@ -53,8 +53,10 @@ console.log(response.data);
 import {
   ReceiptLedger,
   WebhookInbox,
+  createMemoPaymentRequest,
   serializeWebhookPayload,
   signWebhookEvent,
+  verifyMemoPaymentProof,
 } from '@arc-nano-kit/sdk/receipts';
 
 const ledger = new ReceiptLedger();
@@ -71,6 +73,12 @@ const receipt = ledger.recordPayment(invoice.id, {
   amount: '19.00',
   memo: invoice.memo,
   txHash: '0xabc' as `0x${string}`,
+});
+
+const paymentRequest = createMemoPaymentRequest(invoice);
+const proof = await verifyMemoPaymentProof({
+  txHash: '0x...' as `0x${string}`,
+  paymentRequest,
 });
 
 const event = ledger.listWebhookEvents().at(-1)!;
@@ -90,6 +98,7 @@ const replay = inbox.replay({
 });
 
 console.log(receipt.status);   // paid
+console.log(proof.explorerUrl);
 console.log(delivery.status);  // verified
 console.log(replay.attempt);   // 2
 ```
@@ -102,11 +111,12 @@ console.log(replay.attempt);   // 2
 | Client | `@arc-nano-kit/sdk/client` | Buyer SDK for `402 -> sign -> retry` flows |
 | Billing | `@arc-nano-kit/sdk/billing` | Usage metering and billing plans |
 | Gateway | `@arc-nano-kit/sdk/gateway` | Small Arc Testnet balance helper |
-| Receipts | `@arc-nano-kit/sdk/receipts` | Invoices, memos, watcher, receipts, signed webhooks, inbox replay |
+| Receipts | `@arc-nano-kit/sdk/receipts` | Invoices, memos, watcher, onchain proof, receipts, signed webhooks, inbox replay |
 
 ## Current Limits
 
 - Receipt storage is in-memory.
+- Onchain proof mode is read-only and does not send transactions.
 - Webhook delivery attempts are in-memory.
 - Watcher cursors are not persisted yet.
 - Gateway helpers do not yet include deposit tracking or pending settlement state.
@@ -116,6 +126,7 @@ console.log(replay.attempt);   // 2
 - [Root README](../../README.md)
 - [Grant Snapshot](../../docs/grant.md)
 - [Demo Script](../../docs/demo-script.md)
+- [Onchain Proof](../../docs/onchain-proof.md)
 - [Arc Receipts](../../docs/receipts.md)
 
 ## License

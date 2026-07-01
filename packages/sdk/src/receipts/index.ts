@@ -32,6 +32,13 @@ export {
   type ArcReceiptWatcherLifecycleEvent,
 } from './watcher.js';
 export {
+  MemoPaymentProofError,
+  verifyMemoPaymentProof,
+  type VerifyMemoPaymentProofFailureReason,
+  type VerifyMemoPaymentProofInput,
+  type VerifyMemoPaymentProofResult,
+} from './proof.js';
+export {
   createWebhookEvent,
   serializeWebhookPayload,
   signWebhookEvent,
@@ -47,6 +54,7 @@ export {
 export type {
   ArcInvoice,
   ArcReceipt,
+  ArcReceiptOnchainProof,
   CreateInvoiceInput,
   InvoiceStatus,
   MemoPaymentRequest,

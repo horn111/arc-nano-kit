@@ -65,6 +65,7 @@ type ReceiptDemo = {
     txHash?: string;
     memo: string;
     createdAt: number;
+    onchainProof?: ArcReceiptOnchainProof;
     metadata?: Record<string, unknown>;
   };
   webhook: {
@@ -75,6 +76,30 @@ type ReceiptDemo = {
     target: string;
   };
   timeline: TimelineItem[];
+};
+
+type ArcReceiptOnchainProof = {
+  chainId: number;
+  network: string;
+  txHash: string;
+  blockNumber: string;
+  transactionIndex?: number;
+  logIndex?: number;
+  memoContract: string;
+  memoIndex?: string;
+  memoId: string;
+  callDataHash: string;
+  payer: string;
+  payTo: string;
+  target: string;
+  amountUnits: string;
+  explorerUrl: string;
+  verifiedAt: number;
+};
+
+type OnchainProofResult = {
+  proof: ArcReceiptOnchainProof;
+  receipt: ReceiptDemo['receipt'];
 };
 
 type WebhookDemoEvent = {
@@ -153,6 +178,10 @@ export default function HomePage() {
   const [webhookDeliveries, setWebhookDeliveries] = useState<WebhookDeliveryAttempt[]>([]);
   const [webhookInboxError, setWebhookInboxError] = useState<string | null>(null);
   const [replayLoading, setReplayLoading] = useState(false);
+  const [proofTxHash, setProofTxHash] = useState('');
+  const [onchainProof, setOnchainProof] = useState<OnchainProofResult | null>(null);
+  const [proofLoading, setProofLoading] = useState(false);
+  const [proofError, setProofError] = useState<string | null>(null);
 
   const terminalState = receiptLoading
     ? 'Watching flow'
@@ -188,6 +217,11 @@ export default function HomePage() {
       detail: 'fresh signature timestamp',
       done: webhookDeliveries.some((delivery) => delivery.attempt >= 2),
     },
+    {
+      label: 'Arc Testnet proof',
+      detail: 'optional tx/log/explorer proof',
+      done: Boolean(onchainProof?.proof),
+    },
   ];
 
   const runReceiptDemo = async () => {
@@ -199,6 +233,9 @@ export default function HomePage() {
     setSelectedBlock('invoice');
     setWebhookDeliveries([]);
     setWebhookInboxError(null);
+    setProofTxHash('');
+    setOnchainProof(null);
+    setProofError(null);
 
     try {
       const response = await fetch('/api/receipts', { cache: 'no-store' });
@@ -328,6 +365,45 @@ export default function HomePage() {
       setEndpointResult({ error: message });
     } finally {
       setEndpointLoading(null);
+    }
+  };
+
+  const verifyOnchainProof = async () => {
+    if (!receiptDemo) {
+      return;
+    }
+
+    setProofLoading(true);
+    setProofError(null);
+    setOnchainProof(null);
+
+    try {
+      const response = await fetch('/api/receipts/proof', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          txHash: proofTxHash.trim(),
+          invoice: receiptDemo.invoice,
+          paymentRequest: receiptDemo.paymentRequest,
+        }),
+      });
+      const result = (await response.json()) as {
+        proof?: ArcReceiptOnchainProof;
+        receipt?: ReceiptDemo['receipt'];
+        error?: string;
+        reason?: string;
+      };
+
+      if (!response.ok || !result.proof || !result.receipt) {
+        throw new Error(result.reason ? `${result.reason}: ${result.error}` : result.error ?? 'Proof failed');
+      }
+
+      setOnchainProof({ proof: result.proof, receipt: result.receipt });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown proof verification error';
+      setProofError(message);
+    } finally {
+      setProofLoading(false);
     }
   };
 
@@ -518,6 +594,68 @@ export default function HomePage() {
               </div>
             </div>
             <JsonCode data={getReceiptPayload(receiptDemo)} />
+          </div>
+
+          <div className="panel">
+            <div className="panel-header compact">
+              <div>
+                <p className="eyebrow">Arc Testnet</p>
+                <h2 className="panel-title">Onchain Proof</h2>
+              </div>
+            </div>
+
+            <div className="proof-verifier">
+              <label className="proof-input-label" htmlFor="proof-tx-hash">
+                Transaction hash
+              </label>
+              <div className="proof-input-row">
+                <input
+                  id="proof-tx-hash"
+                  className="proof-input"
+                  value={proofTxHash}
+                  onChange={(event) => setProofTxHash(event.target.value)}
+                  placeholder="0x..."
+                  spellCheck={false}
+                />
+                <button
+                  className="btn-flow proof-button"
+                  onClick={verifyOnchainProof}
+                  disabled={!receiptDemo || proofLoading || !isTxHash(proofTxHash.trim())}
+                >
+                  {proofLoading ? 'Verifying...' : 'Verify Arc Testnet Tx'}
+                </button>
+              </div>
+              <p className="proof-note">
+                Read-only proof. Paste a Memo-wrapped Arc Testnet USDC tx for the generated payment request.
+              </p>
+            </div>
+
+            <div className="inbox-status-grid proof-status-grid">
+              <div className={`inbox-status ${onchainProof ? 'ok' : ''}`}>
+                <span>Chain ID</span>
+                <strong>{onchainProof?.proof.chainId ?? 'pending'}</strong>
+              </div>
+              <div className={`inbox-status ${onchainProof ? 'ok' : ''}`}>
+                <span>Block</span>
+                <strong>{onchainProof?.proof.blockNumber ?? 'pending'}</strong>
+              </div>
+              <div className={`inbox-status ${onchainProof?.proof.memoIndex ? 'ok' : ''}`}>
+                <span>Memo Index</span>
+                <strong>{onchainProof?.proof.memoIndex ?? 'pending'}</strong>
+              </div>
+              <div className={`inbox-status ${onchainProof?.proof.logIndex !== undefined ? 'ok' : ''}`}>
+                <span>Log Index</span>
+                <strong>{onchainProof?.proof.logIndex ?? 'pending'}</strong>
+              </div>
+            </div>
+
+            {proofError ? <p className="inbox-error">{proofError}</p> : null}
+            {onchainProof ? (
+              <a className="proof-link" href={onchainProof.proof.explorerUrl} target="_blank" rel="noreferrer">
+                View on Arcscan
+              </a>
+            ) : null}
+            <JsonCode data={getOnchainProofPayload(onchainProof)} />
           </div>
 
           <div className="panel">
@@ -875,7 +1013,7 @@ export default function HomePage() {
 
         .proof-grid {
           display: grid;
-          grid-template-columns: repeat(5, minmax(0, 1fr));
+          grid-template-columns: repeat(3, minmax(0, 1fr));
           gap: 8px;
         }
 
@@ -1427,6 +1565,73 @@ export default function HomePage() {
           margin-bottom: 16px;
         }
 
+        .proof-verifier {
+          margin-bottom: 16px;
+        }
+
+        .proof-input-label {
+          display: block;
+          margin-bottom: 8px;
+          color: var(--text-muted);
+          font-family: JetBrains Mono, Geist Mono, SFMono-Regular, Consolas, monospace;
+          font-size: 11px;
+          text-transform: uppercase;
+        }
+
+        .proof-input-row {
+          display: grid;
+          grid-template-columns: minmax(0, 1fr) auto;
+          gap: 10px;
+          align-items: stretch;
+        }
+
+        .proof-input {
+          min-width: 0;
+          min-height: 38px;
+          padding: 0 12px;
+          border: 1px solid var(--border-color);
+          border-radius: 8px;
+          background: var(--bg-canvas);
+          color: var(--text-main);
+          font-family: JetBrains Mono, Geist Mono, SFMono-Regular, Consolas, monospace;
+          font-size: 13px;
+          outline: none;
+        }
+
+        .proof-input:focus {
+          border-color: rgba(138, 180, 248, 0.54);
+        }
+
+        .proof-button {
+          white-space: nowrap;
+        }
+
+        .proof-note {
+          margin-top: 9px;
+          color: var(--text-muted);
+          font-size: 12px;
+          line-height: 1.45;
+        }
+
+        .proof-status-grid {
+          margin-bottom: 16px;
+        }
+
+        .proof-link {
+          display: inline-flex;
+          align-items: center;
+          min-height: 34px;
+          margin-bottom: 16px;
+          padding: 0 12px;
+          border: 1px solid rgba(138, 180, 248, 0.32);
+          border-radius: 8px;
+          background: var(--pale-blue);
+          color: var(--pale-blue-text);
+          font-size: 13px;
+          font-weight: 600;
+          text-decoration: none;
+        }
+
         .delivery-attempt {
           display: grid;
           gap: 8px;
@@ -1669,6 +1874,10 @@ export default function HomePage() {
             grid-template-columns: 1fr;
           }
 
+          .proof-input-row {
+            grid-template-columns: 1fr;
+          }
+
           .btn-endpoint {
             align-items: flex-start;
             flex-direction: column;
@@ -1723,6 +1932,25 @@ function getReceiptPayload(data: ReceiptDemo | null) {
     txHash: data.receipt.txHash,
     payer: data.receipt.payer,
     memo: data.receipt.memo,
+    onchainProof: data.receipt.onchainProof ?? null,
+  };
+}
+
+function getOnchainProofPayload(result: OnchainProofResult | null) {
+  if (!result) {
+    return {
+      status: 'pending',
+      proof: 'paste an Arc Testnet tx hash for this payment request',
+    };
+  }
+
+  return {
+    proof: result.proof,
+    receipt: {
+      id: result.receipt.id,
+      txHash: result.receipt.txHash,
+      blockNumber: result.receipt.onchainProof?.blockNumber,
+    },
   };
 }
 
@@ -1792,6 +2020,10 @@ function formatSignatureTimestamp(header: string) {
     .find((part) => part.startsWith('t='));
 
   return timestamp ?? 't=pending';
+}
+
+function isTxHash(value: string) {
+  return /^0x[0-9a-fA-F]{64}$/.test(value);
 }
 
 function delay(ms: number) {

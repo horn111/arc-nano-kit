@@ -94,9 +94,33 @@ watcher.watchInvoice(invoice);
 watcher.start();
 ```
 
-The watcher polls Arc Testnet `Memo` events, fetches the transaction receipt, verifies the paired ERC-20 USDC `Transfer`, then writes a receipt and emits signed-webhook-ready ledger events.
+The watcher polls Arc Testnet `Memo` events, fetches the transaction receipt, verifies the paired ERC-20 USDC `Transfer`, writes an `onchainProof` onto the receipt, then emits signed-webhook-ready ledger events.
 
 It intentionally watches the ERC-20 USDC interface at `0x3600000000000000000000000000000000000000` and ignores the native USDC system event emitter at `0xfffffffffffffffffffffffffffffffffffffffe` to avoid double-counting the same ERC-20 transfer.
+
+## Arc Testnet Proof
+
+Use `verifyMemoPaymentProof()` when you already have a transaction hash and want to prove it matches a generated memo payment request.
+
+```typescript
+import {
+  createMemoPaymentRequest,
+  verifyMemoPaymentProof,
+} from '@arc-nano-kit/sdk/receipts';
+
+const paymentRequest = createMemoPaymentRequest(invoice);
+
+const proof = await verifyMemoPaymentProof({
+  txHash: '0x...' as `0x${string}`,
+  paymentRequest,
+});
+
+console.log(proof.blockNumber);
+console.log(proof.memoIndex);
+console.log(proof.explorerUrl);
+```
+
+The proof path is read-only. It does not send a transaction, store a private key, or replace a production indexer.
 
 ## Webhook Inbox and Replay
 
@@ -137,6 +161,7 @@ The inbox is intentionally in-memory for local payment-ops workflows. A producti
 - `createInvoice()` for invoice ids, stablecoin minor units, Arc payment URIs, memo ids, and invoice memos.
 - `createMemoPaymentRequest()` for Arc `Memo.memo(...)` call data around an ERC-20 USDC transfer.
 - `ArcReceiptWatcher` for polling Arc Testnet memo events and creating receipts from matching payments.
+- `verifyMemoPaymentProof()` for read-only tx/log proof against a memo payment request.
 - `createInvoiceMemo()`, `createInvoiceMemoId()`, `createInvoiceMemoData()`, and `parseInvoiceMemo()` for memo correlation.
 - `matchPaymentToInvoice()` to validate amount, recipient, currency, network, memo, memo id, and expiry.
 - `ReceiptLedger` for an in-memory invoice/receipt/event store with duplicate tx protection.
@@ -145,7 +170,7 @@ The inbox is intentionally in-memory for local payment-ops workflows. A producti
 
 ## Current Limits
 
-The watcher is intentionally local-first and polling-based. It does not yet persist scan cursors, run a hosted indexer, use Circle event monitors, watch Gateway settlement, or store receipts in a database.
+The watcher is intentionally local-first and polling-based. Proof mode is read-only. The module does not yet persist scan cursors, run a hosted indexer, use Circle event monitors, watch Gateway settlement, or store receipts in a database.
 
 ## Planned Next Steps
 

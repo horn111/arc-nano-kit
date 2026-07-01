@@ -95,6 +95,7 @@ The demo currently shows:
 - invoice and memo payment data;
 - Arc Testnet watcher flow;
 - generated receipt JSON;
+- optional read-only Arc Testnet tx proof;
 - signed webhook payload;
 - local Webhook Inbox verification;
 - replayed webhook delivery attempt.
@@ -105,9 +106,10 @@ In the browser:
 
 1. Click `Run Watcher Flow`.
 2. Confirm `Generated Receipt` shows a paid receipt payload.
-3. Confirm `Webhook Inbox` shows `Received`, `Verified`, and `Signature OK`.
-4. Click `Replay Webhook`.
-5. Confirm `Delivery attempt #2` appears with a fresh `t=<timestamp>` signature value.
+3. Optionally paste a real Arc Testnet Memo transaction hash into `Onchain Proof`.
+4. Confirm `Webhook Inbox` shows `Received`, `Verified`, and `Signature OK`.
+5. Click `Replay Webhook`.
+6. Confirm `Delivery attempt #2` appears with a fresh `t=<timestamp>` signature value.
 
 For a detailed reviewer script, see [demo-script.md](demo-script.md).
 
@@ -127,5 +129,6 @@ The scaffolder creates an Express or Next.js starter with a paid API route and e
 - [Grant Snapshot](grant.md)
 - [Demo Script](demo-script.md)
 - [Architecture](architecture.md)
+- [Onchain Proof](onchain-proof.md)
 - [Arc Receipts](receipts.md)
 - [Why Arc?](why-arc.md)

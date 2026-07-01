@@ -141,6 +141,7 @@ export function createReceipt(
     txHash: payment.txHash,
     createdAt,
     blockNumber: payment.blockNumber,
+    onchainProof: payment.onchainProof,
     metadata: {
       ...invoice.metadata,
       ...payment.metadata,
