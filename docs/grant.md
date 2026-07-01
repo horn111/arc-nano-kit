@@ -8,7 +8,7 @@ It helps developers move beyond "a payment happened" and into application-level 
 
 ## One-Liner
 
-Open-source payment operations toolkit for Arc builders: paid APIs, invoices, memo-based receipts, watcher flows, signed webhooks, and local delivery replay.
+Open-source payment operations toolkit for Arc builders: paid APIs, invoices, memo-based receipts, watcher flows, optional Arc Testnet tx proof, signed webhooks, and local delivery replay.
 
 ## Problem
 
@@ -36,6 +36,7 @@ The current repo includes:
 - Billing helpers for per-request, per-second, and per-job pricing.
 - `ReceiptLedger` for in-memory invoices, receipts, and webhook events.
 - `ArcReceiptWatcher` for memo-wrapped Arc Testnet USDC payments.
+- `verifyMemoPaymentProof` for read-only Arc Testnet tx/log proof against a memo payment request.
 - `WebhookInbox` for local signed webhook verification and replay.
 - `create-arc-nano-kit` scaffolder for Express or Next.js paid API starters.
 - A local Next.js demo that shows the payment ops flow end to end.
@@ -49,6 +50,7 @@ create invoice
 build Arc transaction memo payment request
 watch Arc Testnet memo-wrapped USDC payment
 generate receipt
+optionally verify the receipt against a real Arc Testnet tx
 create signed invoice.paid webhook
 deliver webhook into local inbox
 verify SDK signature
@@ -58,6 +60,7 @@ replay webhook with a fresh timestamp
 The demo proves the chain does not stop at "webhook ready". It shows verified delivery attempts:
 
 - `receipt.generated`
+- optional `onchainProof` with tx hash, block, memo index, log index, and Arcscan link
 - raw webhook payload
 - `x-arc-signature`
 - `Signature OK`
@@ -87,6 +90,7 @@ Current limits are explicit:
 - receipt storage is in-memory;
 - watcher cursors are not persisted;
 - webhook delivery attempts are local/in-memory;
+- onchain proof mode is read-only and does not broadcast transactions;
 - default middleware verification is not a production Gateway verification path unless the app provides a custom verifier;
 - hosted dashboard and analytics are planned, not shipped;
 - Fastify, Hono, Python, and Go adapters are planned, not shipped;
@@ -118,6 +122,7 @@ Use [demo-script.md](demo-script.md) to reproduce the local demo flow.
 Expected proof points:
 
 - `Run Watcher Flow` produces invoice, memo, watcher, receipt, and webhook data.
+- Optional `Onchain Proof` verifies a real Arc Testnet transaction hash against the generated memo payment request.
 - `Webhook Inbox` shows `Received`, `Verified`, and `Signature OK`.
 - `Replay Webhook` creates `Delivery attempt #2`.
 - The replayed attempt has a fresh signature timestamp.

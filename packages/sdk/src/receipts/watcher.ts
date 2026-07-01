@@ -14,6 +14,7 @@ import {
 } from 'viem';
 import { ARC_TESTNET, USDC_DECIMALS } from '../constants.js';
 import { createMemoPaymentRequest, ERC20_TRANSFER_ABI } from './memo-payment.js';
+import { createMemoPaymentProofFromReceipt } from './proof.js';
 import type { ReceiptLedger } from './ledger.js';
 import type { ArcInvoice, ArcReceipt, MemoPaymentRequest, ObservedPayment } from './types.js';
 
@@ -221,6 +222,12 @@ export class ArcReceiptWatcher {
       return null;
     }
 
+    const onchainProof = createMemoPaymentProofFromReceipt({
+      txHash,
+      paymentRequest: request,
+      txReceipt,
+    });
+
     const observed: ObservedPayment = {
       txHash,
       from: transfer.from,
@@ -232,10 +239,12 @@ export class ArcReceiptWatcher {
       memoId: request.memoId,
       callDataHash: request.callDataHash,
       blockNumber: txReceipt.blockNumber,
+      onchainProof,
       observedAt: Date.now(),
       metadata: {
         source: 'arc-testnet-watcher',
         memoIndex: args.memoIndex?.toString(),
+        explorerUrl: onchainProof.explorerUrl,
       },
     };
 

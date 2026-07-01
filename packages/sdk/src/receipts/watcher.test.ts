@@ -6,7 +6,7 @@ import {
 } from 'viem';
 import { ARC_TESTNET_CONTRACTS } from '../constants.js';
 import { ReceiptLedger } from './ledger.js';
-import { createMemoPaymentRequest } from './memo-payment.js';
+import { ARC_MEMO_ABI, createMemoPaymentRequest } from './memo-payment.js';
 import { ArcReceiptWatcher } from './watcher.js';
 
 const seller = '0x1111111111111111111111111111111111111111' as const;
@@ -14,6 +14,7 @@ const buyer = '0x2222222222222222222222222222222222222222' as const;
 const txHash = '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' as const;
 const blockHash = '0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb' as const;
 const transferEvent = parseAbiItem('event Transfer(address indexed from,address indexed to,uint256 value)');
+const memoEvent = ARC_MEMO_ABI.find((item) => item.type === 'event' && item.name === 'Memo');
 
 describe('ArcReceiptWatcher', () => {
   it('creates a receipt when it sees matching Memo and ERC-20 Transfer logs', async () => {
@@ -34,6 +35,18 @@ describe('ArcReceiptWatcher', () => {
     expect(receipts[0]?.invoiceId).toBe(invoice.id);
     expect(receipts[0]?.txHash).toBe(txHash);
     expect(receipts[0]?.amountUnits).toBe('19000000');
+    expect(receipts[0]?.onchainProof).toMatchObject({
+      chainId: 5042002,
+      txHash,
+      memoContract: request.memoContract,
+      memoIndex: '1',
+      memoId: request.memoId,
+      callDataHash: request.callDataHash,
+      payer: buyer,
+      payTo: seller,
+      target: request.target,
+      amountUnits: '19000000',
+    });
     expect(ledger.getInvoice(invoice.id)?.status).toBe('paid');
     expect(onReceipt).toHaveBeenCalledOnce();
   });
@@ -85,7 +98,11 @@ function createMockClient(params: { memoLogs: unknown[]; receiptLogs: unknown[] 
     getTransactionReceipt: vi.fn().mockResolvedValue({
       status: 'success',
       blockNumber: 10n,
-      logs: params.receiptLogs,
+      transactionIndex: 0,
+      logs: [
+        ...params.memoLogs.map((log) => memoReceiptLog((log as ReturnType<typeof memoLog>).args)),
+        ...params.receiptLogs,
+      ],
     }),
   } as any;
 }
@@ -108,6 +125,39 @@ function memoLog(request: {
       memo: request.memoData,
       memoIndex: 1n,
     },
+  };
+}
+
+function memoReceiptLog(args: {
+  target?: `0x${string}`;
+  memoId?: `0x${string}`;
+  memo?: `0x${string}`;
+  callDataHash?: `0x${string}`;
+  memoIndex?: bigint;
+}) {
+  if (!memoEvent || !args.target || !args.memoId || !args.memo || !args.callDataHash) {
+    throw new Error('Invalid memo log fixture');
+  }
+
+  const topics = encodeEventTopics({
+    abi: [memoEvent],
+    eventName: 'Memo',
+    args: { sender: buyer, target: args.target, memoId: args.memoId },
+  });
+
+  return {
+    address: ARC_TESTNET_CONTRACTS.memo,
+    topics,
+    data: encodeAbiParameters(
+      [{ type: 'bytes32' }, { type: 'bytes' }, { type: 'uint256' }],
+      [args.callDataHash, args.memo, args.memoIndex ?? 1n],
+    ),
+    blockNumber: 10n,
+    blockHash,
+    transactionHash: txHash,
+    transactionIndex: 0,
+    logIndex: 1,
+    removed: false,
   };
 }
 

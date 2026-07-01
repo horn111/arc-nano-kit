@@ -31,6 +31,7 @@
 - [x] In-memory receipt ledger
 - [x] HMAC-signed webhook events
 - [x] Arc Testnet watcher for memo-wrapped USDC payments
+- [x] Read-only Arc Testnet tx proof for memo payment requests
 - [x] Local webhook inbox
 - [x] Webhook replay attempts with fresh signature timestamps
 
@@ -39,6 +40,7 @@
 - [x] Local Next.js demo app
 - [x] Interactive watcher flow in the demo
 - [x] Webhook Inbox + Replay demo flow
+- [x] Optional Onchain Proof demo panel
 - [x] Repo-local `create-arc-nano-kit` scaffolder
 - [x] Grant snapshot and demo script docs
 

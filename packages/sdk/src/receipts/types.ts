@@ -68,6 +68,7 @@ export interface ObservedPayment {
   callDataHash?: `0x${string}`;
   observedAt?: number;
   blockNumber?: bigint;
+  onchainProof?: ArcReceiptOnchainProof;
   metadata?: Record<string, unknown>;
 }
 
@@ -103,7 +104,27 @@ export interface ArcReceipt {
   txHash?: `0x${string}`;
   createdAt: number;
   blockNumber?: bigint;
+  onchainProof?: ArcReceiptOnchainProof;
   metadata?: Record<string, unknown>;
+}
+
+export interface ArcReceiptOnchainProof {
+  chainId: number;
+  network: string;
+  txHash: `0x${string}`;
+  blockNumber: bigint;
+  transactionIndex?: number;
+  logIndex?: number;
+  memoContract: `0x${string}`;
+  memoIndex?: string;
+  memoId: `0x${string}`;
+  callDataHash: `0x${string}`;
+  payer: `0x${string}`;
+  payTo: `0x${string}`;
+  target: `0x${string}`;
+  amountUnits: string;
+  explorerUrl: string;
+  verifiedAt: number;
 }
 
 export type WebhookEventType =
