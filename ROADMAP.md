@@ -1,111 +1,133 @@
 # Roadmap
 
-> **Last Updated:** May 2025
+> Last updated: June 2026
 
-arc-nano-kit is under active development. This roadmap outlines our planned milestones and features.
+`arc-nano-kit` is an early open-source payment operations toolkit for Arc builders. The current focus is narrow on purpose: make Arc payment flows easier to run, inspect, and operate locally before moving toward persistent production infrastructure.
 
-## Phase 1: Foundation (Weeks 1–2) ✅ In Progress
+## Shipped
 
 ### Core SDK
-- [x] Project scaffolding with TypeScript monorepo
-- [x] Express.js middleware for x402 paywalled endpoints
-- [x] Next.js middleware adapter
-- [x] Buyer SDK with automated 402 → sign → retry flow
+
+- [x] TypeScript monorepo
+- [x] Express middleware for x402-style paywalled endpoints
+- [x] Next.js Route Handler adapter
+- [x] Buyer SDK with `402 -> sign -> retry` flow
 - [x] Arc chain configuration and constants
-- [ ] Unit tests for middleware and buyer client
+- [x] Middleware test coverage
+- [x] Billing and receipts test coverage
 
-### Billing Engine
+### Billing
+
 - [x] Per-request pricing model
-- [x] Per-second (streaming) pricing model
-- [x] Per-job (batch) pricing model
-- [x] Usage metering with in-memory store
-- [x] Arc Receipts MVP (invoice memos, receipts, signed webhooks)
-- [x] Arc Testnet watcher for memo-wrapped USDC payments
-- [ ] Persistent usage store (Supabase/Postgres adapter)
-
-### Demo
-- [x] Next.js demo app with paywalled API endpoints
-- [ ] Interactive demo page with live payment flow
-- [ ] Hosted demo on Vercel
-
----
-
-## Phase 2: Production Features (Weeks 3–4)
+- [x] Per-second pricing model
+- [x] Per-job pricing model
+- [x] In-memory usage metering
 
 ### Arc Receipts
-- [x] Invoice and transaction memo helpers
-- [x] Receipt matching and in-memory ledger
+
+- [x] Invoice helpers
+- [x] Transaction memo helpers
+- [x] Receipt matching
+- [x] In-memory receipt ledger
 - [x] HMAC-signed webhook events
-- [x] Arc Testnet payment watcher
-- [x] Local webhook inbox and replay attempts
-- [ ] Persistent watcher cursor
-- [ ] SQLite/Postgres receipt store
-- [ ] Next.js webhook route helpers
-- [ ] Refund/counter-payment tracking
-
-### Gateway Integration
-- [ ] Unified balance deposit helper
-- [ ] Balance monitoring and alerts
-- [ ] Withdrawal automation
-- [ ] Multi-chain balance aggregation
-
-### Usage Dashboard
-- [ ] Real-time usage analytics API
-- [ ] Revenue tracking and reporting
-- [ ] Per-endpoint cost breakdown
-- [ ] React dashboard component library
+- [x] Arc Testnet watcher for memo-wrapped USDC payments
+- [x] Local webhook inbox
+- [x] Webhook replay attempts with fresh signature timestamps
 
 ### Developer Experience
-- [ ] CLI tool for quick project scaffolding
-- [ ] Comprehensive API documentation (TypeDoc)
-- [ ] Video tutorials and walkthroughs
-- [ ] Postman/Insomnia collection
 
----
+- [x] Local Next.js demo app
+- [x] Interactive watcher flow in the demo
+- [x] Webhook Inbox + Replay demo flow
+- [x] Repo-local `create-arc-nano-kit` scaffolder
+- [x] Grant snapshot and demo script docs
 
-## Phase 3: Ecosystem Growth (Months 2–3)
+## Next Grant Milestones
+
+### Persistent Receipt Store
+
+- [ ] SQLite receipt store adapter
+- [ ] Postgres receipt store adapter
+- [ ] Persistent invoices, receipts, webhook events, and delivery attempts
+- [ ] Import/export path for local demo data
+
+### Persistent Watcher Cursor
+
+- [ ] Store last scanned block per watched invoice or memo id
+- [ ] Resume watcher safely after process restart
+- [ ] Avoid duplicate receipt creation after replayed scans
+- [ ] Expose cursor state for local debugging
+
+### Next.js Webhook Route Helpers
+
+- [ ] Raw body reader for signed webhook payloads
+- [ ] `x-arc-signature` verification helper
+- [ ] Delivery attempt recording helper
+- [ ] Typed success/failure responses for route handlers
+
+### Refund And Partial Refund State
+
+- [ ] Refund receipt status model
+- [ ] Partial refund accounting
+- [ ] Counter-payment matching
+- [ ] Webhook events for refund lifecycle changes
+
+### Hosted Demo Flow
+
+- [ ] Reviewer-friendly hosted demo
+- [ ] Demo script embedded in docs
+- [ ] Clear "what is simulated vs onchain" labeling
+- [ ] Short walkthrough assets for grant reviewers
+
+## Later
+
+### Gateway Readiness
+
+- [ ] Deposit readiness helpers
+- [ ] Pending settlement state
+- [ ] Balance monitoring and alerts
+- [ ] Multi-chain balance visibility
+
+### Dashboard And Analytics
+
+- [ ] Usage analytics API
+- [ ] Revenue tracking
+- [ ] Per-endpoint cost breakdown
+- [ ] Receipt and webhook delivery views
 
 ### Multi-Framework Support
-- [ ] Fastify middleware adapter
-- [ ] Hono middleware adapter
-- [ ] Python SDK (FastAPI/Flask)
+
+- [ ] Fastify adapter
+- [ ] Hono adapter
+- [ ] Python SDK
 - [ ] Go SDK
 
-### Advanced Billing
-- [ ] Volume-based tiered pricing
-- [ ] Subscription plans with prepaid credits
-- [ ] Rate limiting integration
-- [ ] Invoice generation (PDF/JSON)
-
 ### Agent Commerce
-- [ ] AI agent discovery protocol
-- [ ] Agent-to-agent payment orchestration
-- [ ] Service marketplace integration
-- [ ] Autonomous budget management
 
-### Infrastructure
-- [ ] Arc Mainnet deployment (Summer 2026)
-- [ ] Multi-region edge deployment
-- [ ] Observability and monitoring (OpenTelemetry)
-- [ ] SOC 2 compliance preparation
+- [ ] Agent payment policy examples
+- [ ] Agent-to-agent paid API examples
+- [ ] Budget-aware buyer flows
+- [ ] Service discovery experiments
 
----
+## Current Non-Goals
 
-## Future Vision
+- Hosted managed payment platform
+- Production webhook queue
+- Default production Gateway verification without an app-provided verifier
+- Persistent receipt database in the current MVP
+- Fastify/Hono/Python/Go adapters in the current MVP
 
-- **Managed Platform**: Hosted dashboard with SLA, analytics, and team management
-- **Marketplace**: Directory of arc-nano-kit powered APIs and services
-- **Circle App Kit Plugin**: Deep integration with App Kit monetization features
-- **Cross-Chain Billing**: Accept payments from any CCTP-supported chain
+## Grant Framing
 
----
+The highest-impact next step is to turn the current local Arc Receipts proof into a more durable builder workflow:
 
-## Contributing
+```text
+local payment ops proof
+-> persistent receipts
+-> resumable watcher
+-> webhook route helpers
+-> refund states
+-> hosted reviewer demo
+```
 
-Want to help shape the roadmap? We welcome input from the community:
-
-- 💬 [Open a Discussion](https://github.com/horn111/arc-nano-kit/discussions)
-- 🐛 [Report an Issue](https://github.com/horn111/arc-nano-kit/issues)
-- 🔀 [Submit a Pull Request](https://github.com/horn111/arc-nano-kit/pulls)
-
-Prioritization is based on community feedback and alignment with [Circle's ecosystem goals](https://developers.circle.com).
+See [docs/grant.md](docs/grant.md) and [docs/demo-script.md](docs/demo-script.md) for the grant-ready project summary and local demo walkthrough.

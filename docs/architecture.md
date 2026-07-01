@@ -1,113 +1,157 @@
 # Architecture
 
-arc-nano-kit is designed as a modular, layered system that sits between your application and Circle's payment infrastructure.
+`arc-nano-kit` is a local-first payment operations toolkit for Arc builders. It sits between an application and payment infrastructure, giving developers reusable SDK pieces for paid APIs, billing, receipts, watchers, and signed webhook delivery.
 
-## System Overview
+## Current System Shape
 
-```
-┌─────────────────────────────────────────────────────────┐
-│                     Your Application                     │
-│                                                          │
-│  ┌──────────────┐  ┌──────────────┐  ┌───────────────┐  │
-│  │  API Routes   │  │   Business   │  │   Frontend    │  │
-│  │  (Express/    │  │    Logic     │  │  (Dashboard)  │  │
-│  │   Next.js)    │  │              │  │               │  │
-│  └──────┬───────┘  └──────────────┘  └───────────────┘  │
-└─────────┼───────────────────────────────────────────────┘
-          │
-┌─────────▼───────────────────────────────────────────────┐
-│                   @arc-nano-kit/sdk                       │
-│                                                          │
-│  ┌──────────────┐  ┌──────────────┐  ┌───────────────┐  │
-│  │  Paywall      │  │   Billing    │  │   Gateway     │  │
-│  │  Middleware   │  │   Engine     │  │   Client      │  │
-│  │              │  │              │  │               │  │
-│  │  • Express   │  │  • Metering  │  │  • Deposits   │  │
-│  │  • Next.js   │  │  • Plans     │  │  • Balances   │  │
-│  │  • Fastify   │  │  • Invoices  │  │  • Withdraws  │  │
-│  └──────┬───────┘  └──────┬───────┘  └──────┬────────┘  │
-└─────────┼────────────────┼──────────────────┼───────────┘
-          │                │                  │
-┌─────────▼────────────────▼──────────────────▼───────────┐
-│               Circle Infrastructure                      │
-│                                                          │
-│  ┌──────────────┐  ┌──────────────┐  ┌───────────────┐  │
-│  │ x402 Protocol │  │   Gateway    │  │  Arc Network  │  │
-│  │  (HTTP 402)   │  │  (Batched    │  │  (L1, USDC    │  │
-│  │              │  │  Settlement) │  │   Gas)        │  │
-│  └──────────────┘  └──────────────┘  └───────────────┘  │
-└─────────────────────────────────────────────────────────┘
+```text
+Developer app
+  |
+  |-- Express / Next.js API routes
+  |     |
+  |     |-- @arc-nano-kit/sdk/middleware
+  |     |     - 402 Payment Required responses
+  |     |     - payment header parsing
+  |     |     - default structural verification
+  |     |     - optional app-provided verifier
+  |     |
+  |     |-- @arc-nano-kit/sdk/billing
+  |     |     - per-request pricing
+  |     |     - per-second pricing
+  |     |     - per-job pricing
+  |     |     - in-memory usage records
+  |     |
+  |     |-- @arc-nano-kit/sdk/receipts
+  |           - invoices
+  |           - transaction memos
+  |           - receipt matching
+  |           - Arc Testnet watcher
+  |           - signed webhook events
+  |           - local webhook inbox
+  |           - replayable delivery attempts
+  |
+  |-- @arc-nano-kit/sdk/client
+        - buyer-side 402 -> sign -> retry flow
 ```
 
-## Payment Flow
+## Payment Ops Flow
 
-### Seller Side (Your API)
+```mermaid
+sequenceDiagram
+    participant Buyer as Buyer / Agent
+    participant API as Seller API
+    participant SDK as arc-nano-kit SDK
+    participant Arc as Arc Testnet
+    participant Inbox as Webhook Inbox
 
-1. **Protect endpoints** with `createPaywallMiddleware()` — define price per request
-2. **Middleware intercepts** incoming requests and checks for valid `X-PAYMENT` header
-3. **If no payment**: Returns `402 Payment Required` with payment requirements
-4. **If valid payment**: Verifies signature via Gateway, passes request to your handler
-5. **Usage metering**: Tracks consumption per buyer, per endpoint
-6. **Batch settlement**: Gateway periodically settles accumulated payments on Arc
+    Buyer->>API: GET paid endpoint
+    API->>SDK: paywall middleware
+    SDK-->>Buyer: 402 + payment requirements
+    Buyer->>Buyer: sign authorization
+    Buyer->>API: retry with x-payment
+    API->>SDK: verify payment payload
+    SDK-->>API: allow handler
+    API-->>Buyer: paid response
 
-### Buyer Side (API Consumer)
-
-1. **Initialize `BuyerClient`** with wallet credentials
-2. **Call `client.request(url)`** — handles full x402 flow automatically:
-   - Sends initial request
-   - Parses 402 response and payment requirements
-   - Signs EIP-3009 `transferWithAuthorization`
-   - Retries with `X-PAYMENT` header
-3. **Receive response** with requested data
-
-## Module Architecture
-
-### Middleware Layer
-
-The middleware layer adapts the x402 payment verification to your web framework:
-
-- **`createPaywallMiddleware(options)`** — Framework-agnostic configuration
-- **`expressPaywall()`** — Express.js compatible middleware
-- **`nextPaywall()`** — Next.js Route Handler wrapper
-
-### Billing Engine
-
-The billing engine provides flexible pricing models:
-
-- **Per-Request** — Fixed cost per API call (e.g., $0.001/request)
-- **Per-Second** — Time-based billing for streaming/compute (e.g., $0.01/second)
-- **Per-Job** — Batch pricing for heavy operations (e.g., $0.50/job)
-
-### Gateway Client
-
-The Gateway client wraps Circle Gateway operations:
-
-- **Deposit monitoring** — Track incoming USDC deposits
-- **Balance queries** — Check unified balance across chains
-- **Settlement tracking** — Monitor batch settlement status
-
-## Data Flow
-
+    API->>SDK: create invoice
+    SDK-->>API: memo payment request
+    Buyer->>Arc: send USDC with memo
+    SDK->>Arc: watcher polls memo events
+    Arc-->>SDK: matching memo + transfer
+    SDK->>SDK: generate receipt
+    SDK->>SDK: sign invoice.paid webhook
+    SDK->>Inbox: deliver signed payload
+    Inbox->>Inbox: verify signature
+    API->>Inbox: replay webhook
 ```
-Buyer                    Seller (arc-nano-kit)           Circle Gateway
-  │                            │                              │
-  │──── GET /api/data ────────>│                              │
-  │                            │                              │
-  │<─── 402 + requirements ────│                              │
-  │                            │                              │
-  │ (sign EIP-3009 off-chain)  │                              │
-  │                            │                              │
-  │──── GET /api/data ────────>│                              │
-  │     + X-PAYMENT header     │                              │
-  │                            │──── verify payment ─────────>│
-  │                            │<─── payment valid ───────────│
-  │                            │                              │
-  │                            │ (meter usage, log billing)   │
-  │                            │                              │
-  │<─── 200 + data ────────────│                              │
-  │                            │                              │
-  │                            │     ... more requests ...    │
-  │                            │                              │
-  │                            │<─── batch settle on Arc ─────│
-  │                            │                              │
+
+## Module Responsibilities
+
+### Middleware
+
+Current adapters:
+
+- `expressPaywall()`
+- `nextPaywall()`
+- `createPaywallMiddleware()`
+
+The default middleware verifier is intentionally small. It validates payment payload shape, amount, recipient, and expiry. Production apps can pass a custom `verifyPayment` function to delegate verification to their own payment infrastructure.
+
+### Buyer Client
+
+`BuyerClient` handles the client-side flow:
+
+```text
+request endpoint
+-> receive 402 requirements
+-> sign payment authorization
+-> retry with x-payment header
+-> return response and payment metadata
 ```
+
+### Billing
+
+Billing helpers model local pricing and usage state:
+
+- per-request pricing;
+- per-second pricing;
+- per-job pricing;
+- in-memory usage metering.
+
+Persistent usage storage is planned, not shipped.
+
+### Receipts
+
+Receipts are the strongest current module. They cover:
+
+- invoice creation;
+- memo construction;
+- memo payment request data;
+- matching observed payments to invoices;
+- local receipt generation;
+- signed webhook events;
+- local webhook inbox verification;
+- replayable delivery attempts.
+
+### Watcher
+
+`ArcReceiptWatcher` is local-first and polling-based. It watches Arc Testnet memo-wrapped USDC payment shape, matches observed payments to invoices, and records receipts in the local ledger.
+
+Current limits:
+
+- no persistent watcher cursor;
+- no hosted indexer;
+- no database-backed receipt store;
+- no refund state in the current watcher flow.
+
+### Gateway / Balance Helpers
+
+`GatewayClient` is currently a small balance helper. It can read Arc Testnet native USDC balance, format explorer links, and check sufficient balance.
+
+It does not yet provide deposit tracking, pending settlement state, withdrawal automation, or alerting.
+
+## Demo Architecture
+
+The local Next.js demo contains:
+
+- `/api/joke` and `/api/weather` paywalled endpoint probes;
+- `/api/receipts` for the receipt and watcher demo payload;
+- `/api/webhook-inbox` for raw signed webhook delivery verification;
+- `/api/webhook-inbox/replay` for replaying the same webhook event with a fresh signature timestamp;
+- `page.tsx` for the interactive local payment ops walkthrough.
+
+The demo is designed to prove the developer workflow locally. It is not a production dashboard.
+
+## Planned Extensions
+
+The next architecture step is persistence:
+
+```text
+in-memory ledger
+-> SQLite/Postgres receipt store
+-> persistent watcher cursor
+-> Next.js webhook route helper
+-> refund and partial refund states
+```
+
+Later extensions may include dashboard analytics, additional framework adapters, and hosted payment operations surfaces.

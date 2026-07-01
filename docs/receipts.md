@@ -1,8 +1,8 @@
 # Arc Receipts
 
-Arc Receipts is the payment operations layer for arc-nano-kit. It gives Arc builders a small, typed workflow for invoices, transaction memos, signed webhooks, receipts, refunds, watcher-based payment observation, and reconciliation.
+Arc Receipts is the payment operations layer for arc-nano-kit. It gives Arc builders a small, typed workflow for invoices, transaction memos, watcher-based payment observation, receipts, signed webhooks, local delivery verification, and replay.
 
-The goal is not to replace x402 or Circle App Kits. The goal is to make the application layer around Arc payments easier to ship.
+The goal is not to replace x402 or Circle App Kits. The goal is to make the application layer around Arc payments easier to ship. Refund and partial refund state are planned next steps, not shipped behavior in the current module.
 
 ## Why this module exists
 

@@ -1,36 +1,59 @@
 # @arc-nano-kit/demo
 
-> Interactive demo app for arc-nano-kit — paywalled API endpoints on Arc
+Local Next.js demo for `arc-nano-kit` payment operations on Arc.
 
-This is the demo application for [arc-nano-kit](https://github.com/horn111/arc-nano-kit). It showcases paywalled API endpoints with usage-based billing powered by Circle Nanopayments.
+The demo shows more than paywalled endpoints. It walks through the current Arc Receipts flow:
+
+```text
+invoice
+-> transaction memo payment request
+-> watcher flow
+-> generated receipt
+-> signed webhook
+-> local inbox verification
+-> replayed delivery attempt
+```
 
 ## Quick Start
 
 ```bash
 # From the repo root
 npm install
-cp apps/demo/.env.example apps/demo/.env.local
 npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000).
 
-## Paywalled Endpoints
+## What To Click
 
-| Endpoint | Price | Description |
-|----------|-------|-------------|
-| `GET /api/joke` | $0.001 USDC | Random developer joke |
-| `GET /api/weather?city=NYC` | $0.005 USDC | Weather data for a city |
+1. Click `Run Watcher Flow`.
+2. Inspect `Memo Payment Data`.
+3. Inspect `Generated Receipt`.
+4. Inspect `Webhook Inbox`.
+5. Confirm `Received`, `Verified`, and `Signature OK`.
+6. Click `Replay Webhook`.
+7. Confirm `Delivery attempt #2` appears with a fresh signature timestamp.
 
-## Testing with cURL
+## Demo Routes
 
-```bash
-# Without payment — returns 402
-curl http://localhost:3000/api/joke
+| Route | Purpose |
+|-------|---------|
+| `GET /api/joke` | Paywalled joke endpoint probe |
+| `GET /api/weather?city=NYC` | Paywalled weather endpoint probe |
+| `GET /api/receipts` | Generates the local receipt/watcher demo payload |
+| `POST /api/webhook-inbox` | Receives raw signed webhook payload and verifies it |
+| `POST /api/webhook-inbox/replay` | Replays a webhook event with a fresh signature timestamp |
 
-# With BuyerClient — handles payment automatically
-npx ts-node -e "import { BuyerClient } from '@arc-nano-kit/sdk/client'; ..."
-```
+## Reviewer Script
+
+See [../../docs/demo-script.md](../../docs/demo-script.md) for the full grant-review walkthrough and API fallback checks.
+
+## Current Limits
+
+- The inbox is in-memory.
+- The receipt ledger is in-memory.
+- The watcher flow is a local developer demo.
+- Hosted dashboard and persistent storage are planned, not shipped.
 
 ## License
 

@@ -19,6 +19,8 @@
   <a href="#what-works-today">What Works</a> ·
   <a href="#arc-receipts">Arc Receipts</a> ·
   <a href="#quickstart">Quickstart</a> ·
+  <a href="docs/grant.md">Grant Snapshot</a> ·
+  <a href="docs/demo-script.md">Demo Script</a> ·
   <a href="docs/receipts.md">Receipts Docs</a> ·
   <a href="ROADMAP.md">Roadmap</a>
 </p>
@@ -49,7 +51,7 @@ That creates a strong base layer, but application developers still need the oper
 - `@arc-nano-kit/sdk` for middleware, buyer flows, billing, receipts, watcher logic, and webhook delivery helpers.
 - `create-arc-nano-kit` for scaffolding a paid API project from this repo.
 - `apps/demo` for a local Next.js demo of paywalled endpoints and Arc Receipts payment ops.
-- Documentation for getting started, architecture, Arc rationale, and the receipts module.
+- Documentation for the grant snapshot, local demo script, getting started, architecture, Arc rationale, and the receipts module.
 
 The newest shipped path is:
 
@@ -377,6 +379,8 @@ arc-nano-kit/
 │       └── src/
 ├── docs/
 │   ├── architecture.md
+│   ├── demo-script.md
+│   ├── grant.md
 │   ├── getting-started.md
 │   ├── receipts.md
 │   └── why-arc.md
