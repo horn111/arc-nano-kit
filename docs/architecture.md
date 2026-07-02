@@ -26,7 +26,7 @@ Developer app
   |           - transaction memos
   |           - receipt matching
   |           - Arc Testnet watcher
-  |           - read-only Arc Testnet tx proof
+  |           - read-only Arc Testnet proof polling
   |           - signed webhook events
   |           - local webhook inbox
   |           - replayable delivery attempts
@@ -59,7 +59,7 @@ sequenceDiagram
     Buyer->>Arc: send USDC with memo
     SDK->>Arc: watcher polls memo events
     Arc-->>SDK: matching memo + transfer
-    SDK->>Arc: verify tx receipt proof
+    SDK->>Arc: watch or verify tx receipt proof
     SDK->>SDK: generate receipt
     SDK->>SDK: sign invoice.paid webhook
     SDK->>Inbox: deliver signed payload
@@ -110,7 +110,7 @@ Receipts are the strongest current module. They cover:
 - memo construction;
 - memo payment request data;
 - matching observed payments to invoices;
-- read-only Arc Testnet tx proof;
+- read-only Arc Testnet proof polling and tx proof;
 - local receipt generation;
 - signed webhook events;
 - local webhook inbox verification;
@@ -118,12 +118,13 @@ Receipts are the strongest current module. They cover:
 
 ### Watcher
 
-`ArcReceiptWatcher` is local-first and polling-based. It watches Arc Testnet memo-wrapped USDC payment shape, matches observed payments to invoices, attaches onchain proof data, and records receipts in the local ledger.
+`ArcReceiptWatcher` is local-first and polling-based. It watches Arc Testnet memo-wrapped USDC payment shape, matches observed payments to invoices, attaches onchain proof data, and records receipts in the local ledger. `findMemoPaymentProof()` exposes the same read-only Memo-log lookup for a single payment request when a demo or app wants proof to fill in automatically.
 
 Current limits:
 
 - no persistent watcher cursor;
 - no hosted indexer;
+- no persisted proof polling cursor;
 - no database-backed receipt store;
 - no transaction broadcasting in proof mode;
 - no refund state in the current watcher flow.
@@ -141,6 +142,7 @@ The local Next.js demo contains:
 - `/api/joke` and `/api/weather` paywalled endpoint probes;
 - `/api/receipts` for the receipt and watcher demo payload;
 - `/api/receipts/proof` for read-only Arc Testnet tx proof verification;
+- `/api/receipts/proof/watch` for read-only Arc Testnet Memo-log proof polling;
 - `/api/webhook-inbox` for raw signed webhook delivery verification;
 - `/api/webhook-inbox/replay` for replaying the same webhook event with a fresh signature timestamp;
 - `page.tsx` for the interactive local payment ops walkthrough.

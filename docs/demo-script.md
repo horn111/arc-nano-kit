@@ -29,8 +29,8 @@ Open [http://localhost:3000](http://localhost:3000).
 5. Inspect `Generated Receipt`.
    - Expected proof: paid receipt JSON with tx hash, payer, and invoice memo.
 6. Inspect `Onchain Proof`.
-   - Expected status before a live tx hash: pending.
-   - Expected fields: transaction hash input, chain id, block, memo index, log index, and proof JSON.
+   - Expected status before a live tx: pending.
+   - Expected fields: transaction hash input, `Watch Arc Testnet`, chain id, block, memo index, log index, and proof JSON.
 7. Inspect `Webhook Inbox`.
    - Expected status: `Received` is `yes`.
    - Expected status: `Verified` is `yes`.
@@ -56,9 +56,9 @@ This step is optional and read-only from the demo. The demo never asks for a pri
    - memo id;
    - memo data;
    - tx data.
-5. Copy the resulting Arc Testnet transaction hash.
-6. Paste it into `Onchain Proof`.
-7. Click `Verify Arc Testnet Tx`.
+5. Click `Watch Arc Testnet`.
+6. Wait for the matching Memo event to be found.
+7. If you already have the hash, paste it into `Onchain Proof` and click `Verify Arc Testnet Tx` instead.
 
 Expected proof points:
 
@@ -78,7 +78,7 @@ create invoice
 build memo payment request
 watch Arc Testnet payment shape
 generate receipt
-optionally verify a real Arc Testnet tx proof
+optionally auto-watch or verify a real Arc Testnet tx proof
 sign invoice.paid webhook
 deliver signed payload
 verify signature locally
@@ -88,7 +88,7 @@ replay webhook with fresh timestamp
 
 The important proof is not only that a receipt object exists. The demo proves verified webhook delivery and replay, which is the operational layer apps need after payment.
 
-The optional onchain proof path connects the same receipt shape to a concrete Arc Testnet transaction, block, Memo event, and Arcscan link.
+The optional onchain proof path connects the same receipt shape to a concrete Arc Testnet transaction, block, Memo event, and Arcscan link. Reviewers can use automatic Memo-log polling or paste a known tx hash.
 
 ## API Fallback Check
 
@@ -154,5 +154,6 @@ replayOf: <first delivery id>
 
 - The inbox is intentionally in-memory for the current milestone.
 - Onchain proof mode is read-only and does not send transactions.
+- Auto proof polling is local and read-only; it is not a hosted indexer or persistent watcher cursor.
 - Persistence, watcher cursors, webhook route helpers, and refund states are planned grant milestones.
 - The current demo is designed to prove the local developer workflow, not to replace a production payment processor or hosted dashboard.

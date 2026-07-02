@@ -9,6 +9,7 @@ import { createInvoice } from './invoice.js';
 import { ARC_MEMO_ABI, createMemoPaymentRequest } from './memo-payment.js';
 import {
   MemoPaymentProofError,
+  findMemoPaymentProof,
   verifyMemoPaymentProof,
   type VerifyMemoPaymentProofFailureReason,
 } from './proof.js';
@@ -155,6 +156,65 @@ describe('verifyMemoPaymentProof', () => {
   });
 });
 
+describe('findMemoPaymentProof', () => {
+  it('returns pending when no Memo logs are found', async () => {
+    const invoice = createInvoice({ id: 'inv_poll_pending', amount: '19.00', payTo: seller });
+    const request = createMemoPaymentRequest(invoice);
+    const client = createPollingMockClient({ memoLogs: [], receiptLogs: [] });
+
+    const result = await findMemoPaymentProof({
+      paymentRequest: request,
+      publicClient: client,
+      fromBlock: 10n,
+      toBlock: 12n,
+      confirmations: 0,
+    });
+
+    expect(result).toEqual({
+      status: 'pending',
+      fromBlock: 10n,
+      toBlock: 12n,
+      nextFromBlock: 13n,
+      scannedLogCount: 0,
+    });
+  });
+
+  it('returns a verified proof when a matching Memo tx is found', async () => {
+    const invoice = createInvoice({ id: 'inv_poll_found', amount: '19.00', payTo: seller });
+    const request = createMemoPaymentRequest(invoice);
+    const client = createPollingMockClient({
+      memoLogs: [{ transactionHash: txHash }],
+      receiptLogs: [
+        memoReceiptLog(request),
+        transferLog({ to: seller, value: 19_000_000n }),
+      ],
+    });
+
+    const result = await findMemoPaymentProof({
+      paymentRequest: request,
+      publicClient: client,
+      fromBlock: 10n,
+      toBlock: 12n,
+      confirmations: 0,
+      verifiedAt: 1_700_000_000_000,
+    });
+
+    expect(result).toMatchObject({
+      status: 'found',
+      txHash,
+      fromBlock: 10n,
+      toBlock: 12n,
+      nextFromBlock: 13n,
+      scannedLogCount: 1,
+      proof: {
+        txHash,
+        memoId: request.memoId,
+        explorerUrl: `${ARC_TESTNET.explorerUrl}/tx/${txHash}`,
+      },
+    });
+  });
+});
+
 function createMockClient(params: { status?: string; logs: unknown[] }) {
   return {
     getTransactionReceipt: vi.fn().mockResolvedValue({
@@ -162,6 +222,23 @@ function createMockClient(params: { status?: string; logs: unknown[] }) {
       blockNumber: 10n,
       transactionIndex: 0,
       logs: params.logs,
+    }),
+  } as any;
+}
+
+function createPollingMockClient(params: {
+  memoLogs: unknown[];
+  receiptLogs: unknown[];
+  status?: string;
+}) {
+  return {
+    getBlockNumber: vi.fn().mockResolvedValue(12n),
+    getLogs: vi.fn().mockResolvedValue(params.memoLogs),
+    getTransactionReceipt: vi.fn().mockResolvedValue({
+      status: params.status ?? 'success',
+      blockNumber: 10n,
+      transactionIndex: 0,
+      logs: params.receiptLogs,
     }),
   } as any;
 }

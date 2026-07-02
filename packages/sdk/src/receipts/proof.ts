@@ -6,6 +6,7 @@ import {
   createPublicClient,
   getAddress,
   http,
+  parseAbiItem,
   parseEventLogs,
   type Log,
 } from 'viem';
@@ -17,12 +18,33 @@ type ProofClient = {
   getTransactionReceipt: (params: { hash: `0x${string}` }) => Promise<ProofTransactionReceipt | null>;
 };
 
+type ProofPollingClient = ProofClient & {
+  getBlockNumber: () => Promise<bigint>;
+  getLogs: (params: {
+    address: `0x${string}`;
+    event: typeof MEMO_EVENT;
+    args: { memoId: `0x${string}` };
+    fromBlock: bigint;
+    toBlock: bigint;
+  }) => Promise<readonly ProofMemoLog[]>;
+};
+
 type ProofTransactionReceipt = {
   status: string;
   blockNumber: bigint;
   transactionIndex?: number;
   logs: readonly Log[];
 };
+
+type ProofMemoLog = {
+  transactionHash?: `0x${string}` | null;
+};
+
+const MEMO_EVENT = parseAbiItem(
+  'event Memo(address indexed sender,address indexed target,bytes32 callDataHash,bytes32 indexed memoId,bytes memo,uint256 memoIndex)',
+);
+
+const DEFAULT_PROOF_LOOKBACK_BLOCKS = 5_000n;
 
 export type VerifyMemoPaymentProofFailureReason =
   | 'tx_not_found'
@@ -58,6 +80,35 @@ export interface VerifyMemoPaymentProofResult {
   proof: ArcReceiptOnchainProof;
 }
 
+export interface FindMemoPaymentProofInput {
+  paymentRequest: MemoPaymentRequest;
+  rpcUrl?: string;
+  publicClient?: ProofPollingClient;
+  fromBlock?: bigint;
+  toBlock?: bigint;
+  confirmations?: number;
+  lookbackBlocks?: bigint | number;
+  verifiedAt?: number;
+}
+
+export type FindMemoPaymentProofResult =
+  | {
+      status: 'found';
+      proof: ArcReceiptOnchainProof;
+      txHash: `0x${string}`;
+      fromBlock: bigint;
+      toBlock: bigint;
+      nextFromBlock: bigint;
+      scannedLogCount: number;
+    }
+  | {
+      status: 'pending';
+      fromBlock: bigint;
+      toBlock: bigint;
+      nextFromBlock: bigint;
+      scannedLogCount: number;
+    };
+
 export async function verifyMemoPaymentProof(
   input: VerifyMemoPaymentProofInput,
 ): Promise<ArcReceiptOnchainProof> {
@@ -88,6 +139,86 @@ export async function verifyMemoPaymentProof(
     txReceipt,
     verifiedAt: input.verifiedAt,
   });
+}
+
+export async function findMemoPaymentProof(
+  input: FindMemoPaymentProofInput,
+): Promise<FindMemoPaymentProofResult> {
+  const client = (input.publicClient ?? createPublicClient({
+    transport: http(input.rpcUrl ?? ARC_TESTNET.rpcUrl),
+  })) as ProofPollingClient;
+  const confirmations = BigInt(input.confirmations ?? 1);
+  const latestBlock = input.toBlock ?? await client.getBlockNumber();
+  const toBlock = latestBlock > confirmations ? latestBlock - confirmations : 0n;
+  const lookbackBlocks = input.lookbackBlocks === undefined
+    ? DEFAULT_PROOF_LOOKBACK_BLOCKS
+    : BigInt(input.lookbackBlocks);
+  const fromBlock = input.fromBlock ?? (toBlock > lookbackBlocks ? toBlock - lookbackBlocks : 0n);
+
+  if (fromBlock > toBlock) {
+    return {
+      status: 'pending',
+      fromBlock,
+      toBlock,
+      nextFromBlock: fromBlock,
+      scannedLogCount: 0,
+    };
+  }
+
+  const memoLogs = await client.getLogs({
+    address: input.paymentRequest.memoContract,
+    event: MEMO_EVENT,
+    args: { memoId: input.paymentRequest.memoId },
+    fromBlock,
+    toBlock,
+  });
+
+  let lastError: MemoPaymentProofError | undefined;
+
+  for (const memoLog of memoLogs) {
+    const txHash = memoLog.transactionHash;
+    if (!txHash) {
+      continue;
+    }
+
+    try {
+      const proof = await verifyMemoPaymentProof({
+        txHash,
+        paymentRequest: input.paymentRequest,
+        publicClient: client,
+        verifiedAt: input.verifiedAt,
+      });
+
+      return {
+        status: 'found',
+        proof,
+        txHash,
+        fromBlock,
+        toBlock,
+        nextFromBlock: toBlock + 1n,
+        scannedLogCount: memoLogs.length,
+      };
+    } catch (error) {
+      if (error instanceof MemoPaymentProofError) {
+        lastError = error;
+        continue;
+      }
+
+      throw error;
+    }
+  }
+
+  if (lastError) {
+    throw lastError;
+  }
+
+  return {
+    status: 'pending',
+    fromBlock,
+    toBlock,
+    nextFromBlock: toBlock + 1n,
+    scannedLogCount: memoLogs.length,
+  };
 }
 
 export function createMemoPaymentProofFromReceipt(params: {

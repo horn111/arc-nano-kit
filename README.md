@@ -11,7 +11,7 @@
 <p align="center">
   <strong>Open-source payment operations toolkit for Arc builders.</strong>
   <br />
-  Paid APIs, invoices, transaction memos, receipts, watchers, signed webhooks, and local delivery replay.
+  Paid APIs, invoices, transaction memos, receipts, watcher proof polling, signed webhooks, and local delivery replay.
 </p>
 
 <p align="center">
@@ -60,6 +60,7 @@ create invoice
 build Arc transaction memo payment request
 watch Arc Testnet memo-wrapped USDC payment
 generate receipt
+optionally auto-watch or verify a real Arc Testnet tx proof
 create signed invoice.paid webhook
 deliver webhook into local inbox
 verify SDK signature
@@ -80,7 +81,7 @@ This is not a hosted dashboard or production queue yet. It is a developer-facing
 | CLI scaffolder | Ready in repo | `packages/create-arc-nano-kit` generates Express or Next.js paid API starters. |
 | Arc Receipts | Ready | Invoices, memos, receipts, signed webhook events, and in-memory ledger. |
 | Arc Testnet watcher | Ready | Watches memo-wrapped USDC payments and records matching receipts locally. |
-| Arc Testnet proof mode | Ready | Verifies a pasted tx hash against a memo payment request and returns block/log proof. |
+| Arc Testnet proof mode | Ready | Polls Memo logs or verifies a pasted tx hash against a memo payment request and returns block/log proof. |
 | Webhook Inbox + Replay | Ready | Verifies signed webhook delivery attempts and replays events locally. |
 | Demo app | Ready locally | Next.js demo with paid endpoints, watcher flow, onchain proof, inbox verification, and replay. |
 | Persistent receipt store | Planned | SQLite/Postgres adapter is a next-step production feature. |
@@ -131,7 +132,7 @@ sequenceDiagram
 The demo does not stop at "webhook ready". It shows verified delivery:
 
 - `receipt.generated`
-- optional `onchainProof` with tx hash, block, log index, and Arcscan link
+- optional `onchainProof` with tx hash, block, memo/log index, and Arcscan link
 - raw webhook payload
 - `x-arc-signature`
 - SDK verification

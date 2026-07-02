@@ -2,7 +2,7 @@
 
 Arc Testnet Proof Mode adds a read-only verification step to Arc Receipts.
 
-It lets a builder paste an Arc Testnet transaction hash and prove that a receipt is tied to a real Memo-wrapped USDC payment:
+It lets a builder watch Arc Testnet Memo logs or paste an Arc Testnet transaction hash and prove that a receipt is tied to a real Memo-wrapped USDC payment:
 
 ```text
 tx hash
@@ -49,6 +49,7 @@ The returned proof includes:
 import {
   createInvoice,
   createMemoPaymentRequest,
+  findMemoPaymentProof,
   verifyMemoPaymentProof,
 } from '@arc-nano-kit/sdk/receipts';
 
@@ -59,6 +60,14 @@ const invoice = createInvoice({
 });
 
 const paymentRequest = createMemoPaymentRequest(invoice);
+
+const watchResult = await findMemoPaymentProof({
+  paymentRequest,
+});
+
+if (watchResult.status === 'found') {
+  console.log(watchResult.proof.explorerUrl);
+}
 
 const proof = await verifyMemoPaymentProof({
   txHash: '0x...',
@@ -78,10 +87,11 @@ To use the optional live proof path:
 2. Click `Run Watcher Flow`.
 3. Copy the generated memo payment request values.
 4. From a funded Arc Testnet EOA, send USDC through Arc `Memo.memo(...)`.
-5. Paste the resulting transaction hash into `Onchain Proof`.
-6. Click `Verify Arc Testnet Tx`.
+5. Click `Watch Arc Testnet` in `Onchain Proof`.
+6. The demo polls Memo logs by `memoId` and fills the proof when the matching tx appears.
+7. As a fallback, paste the resulting transaction hash and click `Verify Arc Testnet Tx`.
 
-On success, the demo shows block/log proof and a `View on Arcscan` link.
+On success, the demo shows block/log proof and a `View on Arcscan` link. Polling is read-only and does not send transactions.
 
 ## Current Limits
 
