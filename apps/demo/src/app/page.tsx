@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 type EndpointResult = {
   status?: number;
@@ -102,6 +102,18 @@ type OnchainProofResult = {
   receipt: ReceiptDemo['receipt'];
 };
 
+type ProofWatchResult = {
+  status: 'pending' | 'found';
+  proof?: ArcReceiptOnchainProof;
+  receipt?: ReceiptDemo['receipt'];
+  fromBlock: string;
+  toBlock: string;
+  nextFromBlock: string;
+  scannedLogCount: number;
+  error?: string;
+  reason?: string;
+};
+
 type WebhookDemoEvent = {
   id: string;
   type: string;
@@ -181,7 +193,17 @@ export default function HomePage() {
   const [proofTxHash, setProofTxHash] = useState('');
   const [onchainProof, setOnchainProof] = useState<OnchainProofResult | null>(null);
   const [proofLoading, setProofLoading] = useState(false);
+  const [proofPolling, setProofPolling] = useState(false);
+  const [proofPollCursor, setProofPollCursor] = useState<string | null>(null);
+  const [proofPollStatus, setProofPollStatus] = useState('idle');
   const [proofError, setProofError] = useState<string | null>(null);
+  const proofPollingRef = useRef(false);
+
+  useEffect(() => {
+    return () => {
+      proofPollingRef.current = false;
+    };
+  }, []);
 
   const terminalState = receiptLoading
     ? 'Watching flow'
@@ -219,7 +241,7 @@ export default function HomePage() {
     },
     {
       label: 'Arc Testnet proof',
-      detail: 'optional tx/log/explorer proof',
+      detail: 'auto or pasted tx proof',
       done: Boolean(onchainProof?.proof),
     },
   ];
@@ -235,6 +257,10 @@ export default function HomePage() {
     setWebhookInboxError(null);
     setProofTxHash('');
     setOnchainProof(null);
+    setProofPolling(false);
+    setProofPollCursor(null);
+    setProofPollStatus('idle');
+    proofPollingRef.current = false;
     setProofError(null);
 
     try {
@@ -373,6 +399,7 @@ export default function HomePage() {
       return;
     }
 
+    stopProofPolling();
     setProofLoading(true);
     setProofError(null);
     setOnchainProof(null);
@@ -399,11 +426,81 @@ export default function HomePage() {
       }
 
       setOnchainProof({ proof: result.proof, receipt: result.receipt });
+      setProofPollStatus('manual tx verified');
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown proof verification error';
       setProofError(message);
     } finally {
       setProofLoading(false);
+    }
+  };
+
+  const toggleProofPolling = async () => {
+    if (proofPolling) {
+      stopProofPolling();
+      return;
+    }
+
+    await startProofPolling();
+  };
+
+  const stopProofPolling = () => {
+    proofPollingRef.current = false;
+    setProofPolling(false);
+    setProofPollStatus((current) => current === 'watching Arc Testnet Memo logs' ? 'watch stopped' : current);
+  };
+
+  const startProofPolling = async () => {
+    if (!receiptDemo || proofPollingRef.current) {
+      return;
+    }
+
+    proofPollingRef.current = true;
+    setProofPolling(true);
+    setProofError(null);
+    setOnchainProof(null);
+    setProofPollStatus('watching Arc Testnet Memo logs');
+
+    let nextFromBlock = proofPollCursor;
+
+    try {
+      while (proofPollingRef.current) {
+        const response = await fetch('/api/receipts/proof/watch', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            invoice: receiptDemo.invoice,
+            paymentRequest: receiptDemo.paymentRequest,
+            fromBlock: nextFromBlock ?? undefined,
+          }),
+        });
+        const result = (await response.json()) as ProofWatchResult;
+
+        if (!response.ok) {
+          throw new Error(result.reason ? `${result.reason}: ${result.error}` : result.error ?? 'Proof polling failed');
+        }
+
+        setProofPollCursor(result.nextFromBlock);
+
+        if (result.status === 'found' && result.proof && result.receipt) {
+          setOnchainProof({ proof: result.proof, receipt: result.receipt });
+          setProofTxHash(result.proof.txHash);
+          setProofPollStatus(`matching tx found in block ${result.proof.blockNumber}`);
+          proofPollingRef.current = false;
+          break;
+        }
+
+        setProofPollStatus(`watching blocks ${result.fromBlock}-${result.toBlock}`);
+        await delay(4_000);
+        nextFromBlock = result.nextFromBlock;
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown proof polling error';
+      setProofError(message);
+      setProofPollStatus('watch failed');
+    } finally {
+      proofPollingRef.current = false;
+      setProofPolling(false);
     }
   };
 
@@ -620,14 +717,25 @@ export default function HomePage() {
                 <button
                   className="btn-flow proof-button"
                   onClick={verifyOnchainProof}
-                  disabled={!receiptDemo || proofLoading || !isTxHash(proofTxHash.trim())}
+                  disabled={!receiptDemo || proofLoading || proofPolling || !isTxHash(proofTxHash.trim())}
                 >
                   {proofLoading ? 'Verifying...' : 'Verify Arc Testnet Tx'}
                 </button>
+                <button
+                  className={`btn-flow proof-button ${proofPolling ? 'watching' : ''}`}
+                  onClick={toggleProofPolling}
+                  disabled={!receiptDemo || proofLoading || Boolean(onchainProof)}
+                >
+                  {proofPolling ? 'Stop Watching' : 'Watch Arc Testnet'}
+                </button>
               </div>
               <p className="proof-note">
-                Read-only proof. Paste a Memo-wrapped Arc Testnet USDC tx for the generated payment request.
+                Read-only proof. Paste a tx hash or watch Arc Testnet Memo logs for this payment request.
               </p>
+              <div className={`proof-watch-state ${proofPolling ? 'active' : ''} ${onchainProof ? 'ok' : ''}`}>
+                <span>{proofPolling ? 'watching' : onchainProof ? 'found' : 'state'}</span>
+                <strong>{proofPollStatus}</strong>
+              </div>
             </div>
 
             <div className="inbox-status-grid proof-status-grid">
@@ -1580,7 +1688,7 @@ export default function HomePage() {
 
         .proof-input-row {
           display: grid;
-          grid-template-columns: minmax(0, 1fr) auto;
+          grid-template-columns: minmax(0, 1fr) auto auto;
           gap: 10px;
           align-items: stretch;
         }
@@ -1606,11 +1714,55 @@ export default function HomePage() {
           white-space: nowrap;
         }
 
+        .proof-button.watching {
+          border-color: rgba(253, 226, 147, 0.4);
+          background: var(--pale-yellow);
+          color: var(--pale-yellow-text);
+        }
+
         .proof-note {
           margin-top: 9px;
           color: var(--text-muted);
           font-size: 12px;
           line-height: 1.45;
+        }
+
+        .proof-watch-state {
+          display: grid;
+          gap: 3px;
+          margin-top: 10px;
+          padding: 10px;
+          border: 1px solid var(--border-color);
+          border-radius: 8px;
+          background: var(--bg-canvas);
+        }
+
+        .proof-watch-state.active {
+          border-color: rgba(253, 226, 147, 0.4);
+          background: var(--pale-yellow);
+        }
+
+        .proof-watch-state.ok {
+          border-color: rgba(129, 201, 149, 0.52);
+          background: var(--pale-green);
+        }
+
+        .proof-watch-state span,
+        .proof-watch-state strong {
+          font-family: JetBrains Mono, Geist Mono, SFMono-Regular, Consolas, monospace;
+        }
+
+        .proof-watch-state span {
+          color: var(--text-muted);
+          font-size: 10px;
+          text-transform: uppercase;
+        }
+
+        .proof-watch-state strong {
+          color: var(--text-main);
+          font-size: 12px;
+          font-weight: 500;
+          overflow-wrap: anywhere;
         }
 
         .proof-status-grid {
@@ -1940,7 +2092,7 @@ function getOnchainProofPayload(result: OnchainProofResult | null) {
   if (!result) {
     return {
       status: 'pending',
-      proof: 'paste an Arc Testnet tx hash for this payment request',
+      proof: 'watch Arc Testnet Memo logs or paste a tx hash for this payment request',
     };
   }
 

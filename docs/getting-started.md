@@ -95,7 +95,7 @@ The demo currently shows:
 - invoice and memo payment data;
 - Arc Testnet watcher flow;
 - generated receipt JSON;
-- optional read-only Arc Testnet tx proof;
+- optional read-only Arc Testnet proof polling or tx proof;
 - signed webhook payload;
 - local Webhook Inbox verification;
 - replayed webhook delivery attempt.
@@ -106,7 +106,7 @@ In the browser:
 
 1. Click `Run Watcher Flow`.
 2. Confirm `Generated Receipt` shows a paid receipt payload.
-3. Optionally paste a real Arc Testnet Memo transaction hash into `Onchain Proof`.
+3. Optionally click `Watch Arc Testnet` in `Onchain Proof`, or paste a real Arc Testnet Memo transaction hash.
 4. Confirm `Webhook Inbox` shows `Received`, `Verified`, and `Signature OK`.
 5. Click `Replay Webhook`.
 6. Confirm `Delivery attempt #2` appears with a fresh `t=<timestamp>` signature value.

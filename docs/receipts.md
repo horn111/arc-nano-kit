@@ -100,15 +100,24 @@ It intentionally watches the ERC-20 USDC interface at `0x36000000000000000000000
 
 ## Arc Testnet Proof
 
-Use `verifyMemoPaymentProof()` when you already have a transaction hash and want to prove it matches a generated memo payment request.
+Use `findMemoPaymentProof()` when you want to poll Arc Testnet Memo logs for a matching payment request. Use `verifyMemoPaymentProof()` when you already have a transaction hash and want to prove it matches a generated memo payment request.
 
 ```typescript
 import {
   createMemoPaymentRequest,
+  findMemoPaymentProof,
   verifyMemoPaymentProof,
 } from '@arc-nano-kit/sdk/receipts';
 
 const paymentRequest = createMemoPaymentRequest(invoice);
+
+const watchResult = await findMemoPaymentProof({
+  paymentRequest,
+});
+
+if (watchResult.status === 'found') {
+  console.log(watchResult.proof.explorerUrl);
+}
 
 const proof = await verifyMemoPaymentProof({
   txHash: '0x...' as `0x${string}`,
@@ -161,6 +170,7 @@ The inbox is intentionally in-memory for local payment-ops workflows. A producti
 - `createInvoice()` for invoice ids, stablecoin minor units, Arc payment URIs, memo ids, and invoice memos.
 - `createMemoPaymentRequest()` for Arc `Memo.memo(...)` call data around an ERC-20 USDC transfer.
 - `ArcReceiptWatcher` for polling Arc Testnet memo events and creating receipts from matching payments.
+- `findMemoPaymentProof()` for read-only Memo-log polling by memo id.
 - `verifyMemoPaymentProof()` for read-only tx/log proof against a memo payment request.
 - `createInvoiceMemo()`, `createInvoiceMemoId()`, `createInvoiceMemoData()`, and `parseInvoiceMemo()` for memo correlation.
 - `matchPaymentToInvoice()` to validate amount, recipient, currency, network, memo, memo id, and expiry.
@@ -170,7 +180,7 @@ The inbox is intentionally in-memory for local payment-ops workflows. A producti
 
 ## Current Limits
 
-The watcher is intentionally local-first and polling-based. Proof mode is read-only. The module does not yet persist scan cursors, run a hosted indexer, use Circle event monitors, watch Gateway settlement, or store receipts in a database.
+The watcher is intentionally local-first and polling-based. Proof mode is read-only. Auto proof polling is local and does not persist scan cursors. The module does not yet run a hosted indexer, use Circle event monitors, watch Gateway settlement, or store receipts in a database.
 
 ## Planned Next Steps
 

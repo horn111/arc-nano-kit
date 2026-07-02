@@ -33,7 +33,10 @@ export {
 } from './watcher.js';
 export {
   MemoPaymentProofError,
+  findMemoPaymentProof,
   verifyMemoPaymentProof,
+  type FindMemoPaymentProofInput,
+  type FindMemoPaymentProofResult,
   type VerifyMemoPaymentProofFailureReason,
   type VerifyMemoPaymentProofInput,
   type VerifyMemoPaymentProofResult,
