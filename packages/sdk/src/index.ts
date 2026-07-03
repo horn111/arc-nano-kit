@@ -14,7 +14,7 @@ export {
 } from './middleware/paywall.js';
 
 export { expressPaywall } from './middleware/express.js';
-export { nextPaywall } from './middleware/next.js';
+export { nextPaywall, type NextRouteHandler } from './middleware/next.js';
 
 export { BuyerClient, type BuyerClientConfig } from './client/buyer.js';
 
@@ -51,6 +51,11 @@ export {
   type FindMemoPaymentProofResult,
   type MemoPaymentRequest,
   type ObservedPayment,
+  type ProofClient,
+  type ProofMemoLog,
+  type ProofPollingClient,
+  type ProofTransactionReceipt,
+  type ReceiptWatcherClient,
   type VerifyMemoPaymentProofInput,
   type VerifyMemoPaymentProofResult,
   type WebhookDeliveryAttempt,

@@ -14,30 +14,30 @@ import { ARC_TESTNET } from '../constants.js';
 import { ARC_MEMO_ABI, ERC20_TRANSFER_ABI } from './memo-payment.js';
 import type { ArcReceiptOnchainProof, MemoPaymentRequest } from './types.js';
 
-type ProofClient = {
-  getTransactionReceipt: (params: { hash: `0x${string}` }) => Promise<ProofTransactionReceipt | null>;
-};
-
-type ProofPollingClient = ProofClient & {
-  getBlockNumber: () => Promise<bigint>;
-  getLogs: (params: {
-    address: `0x${string}`;
-    event: typeof MEMO_EVENT;
-    args: { memoId: `0x${string}` };
-    fromBlock: bigint;
-    toBlock: bigint;
-  }) => Promise<readonly ProofMemoLog[]>;
-};
-
-type ProofTransactionReceipt = {
+export type ProofTransactionReceipt = {
   status: string;
   blockNumber: bigint;
   transactionIndex?: number;
   logs: readonly Log[];
 };
 
-type ProofMemoLog = {
+export type ProofMemoLog = {
   transactionHash?: `0x${string}` | null;
+};
+
+export type ProofClient = {
+  getTransactionReceipt: (params: { hash: `0x${string}` }) => Promise<ProofTransactionReceipt | null>;
+};
+
+export type ProofPollingClient = ProofClient & {
+  getBlockNumber: () => Promise<bigint>;
+  getLogs: (params: {
+    address: `0x${string}`;
+    event: unknown;
+    args: { memoId: `0x${string}` };
+    fromBlock: bigint;
+    toBlock: bigint;
+  }) => Promise<readonly ProofMemoLog[]>;
 };
 
 const MEMO_EVENT = parseAbiItem(
@@ -109,6 +109,22 @@ export type FindMemoPaymentProofResult =
       scannedLogCount: number;
     };
 
+type ProofSearchRange = {
+  fromBlock: bigint;
+  toBlock: bigint;
+};
+
+type MemoProofCandidateResult =
+  | {
+      status: 'found';
+      proof: ArcReceiptOnchainProof;
+      txHash: `0x${string}`;
+    }
+  | {
+      status: 'pending';
+      lastError?: MemoPaymentProofError;
+    };
+
 export async function verifyMemoPaymentProof(
   input: VerifyMemoPaymentProofInput,
 ): Promise<ArcReceiptOnchainProof> {
@@ -147,13 +163,7 @@ export async function findMemoPaymentProof(
   const client = (input.publicClient ?? createPublicClient({
     transport: http(input.rpcUrl ?? ARC_TESTNET.rpcUrl),
   })) as ProofPollingClient;
-  const confirmations = BigInt(input.confirmations ?? 1);
-  const latestBlock = input.toBlock ?? await client.getBlockNumber();
-  const toBlock = latestBlock > confirmations ? latestBlock - confirmations : 0n;
-  const lookbackBlocks = input.lookbackBlocks === undefined
-    ? DEFAULT_PROOF_LOOKBACK_BLOCKS
-    : BigInt(input.lookbackBlocks);
-  const fromBlock = input.fromBlock ?? (toBlock > lookbackBlocks ? toBlock - lookbackBlocks : 0n);
+  const { fromBlock, toBlock } = await resolveProofSearchRange(input, client);
 
   if (fromBlock > toBlock) {
     return {
@@ -165,51 +175,23 @@ export async function findMemoPaymentProof(
     };
   }
 
-  const memoLogs = await client.getLogs({
-    address: input.paymentRequest.memoContract,
-    event: MEMO_EVENT,
-    args: { memoId: input.paymentRequest.memoId },
-    fromBlock,
-    toBlock,
-  });
+  const memoLogs = await getMemoProofLogs(input.paymentRequest, client, { fromBlock, toBlock });
+  const candidate = await verifyMemoProofCandidates(input, client, memoLogs);
 
-  let lastError: MemoPaymentProofError | undefined;
-
-  for (const memoLog of memoLogs) {
-    const txHash = memoLog.transactionHash;
-    if (!txHash) {
-      continue;
-    }
-
-    try {
-      const proof = await verifyMemoPaymentProof({
-        txHash,
-        paymentRequest: input.paymentRequest,
-        publicClient: client,
-        verifiedAt: input.verifiedAt,
-      });
-
-      return {
-        status: 'found',
-        proof,
-        txHash,
-        fromBlock,
-        toBlock,
-        nextFromBlock: toBlock + 1n,
-        scannedLogCount: memoLogs.length,
-      };
-    } catch (error) {
-      if (error instanceof MemoPaymentProofError) {
-        lastError = error;
-        continue;
-      }
-
-      throw error;
-    }
+  if (candidate.status === 'found') {
+    return {
+      status: 'found',
+      proof: candidate.proof,
+      txHash: candidate.txHash,
+      fromBlock,
+      toBlock,
+      nextFromBlock: toBlock + 1n,
+      scannedLogCount: memoLogs.length,
+    };
   }
 
-  if (lastError) {
-    throw lastError;
+  if (candidate.lastError) {
+    throw candidate.lastError;
   }
 
   return {
@@ -219,6 +201,88 @@ export async function findMemoPaymentProof(
     nextFromBlock: toBlock + 1n,
     scannedLogCount: memoLogs.length,
   };
+}
+
+async function resolveProofSearchRange(
+  input: FindMemoPaymentProofInput,
+  client: ProofPollingClient,
+): Promise<ProofSearchRange> {
+  const confirmations = BigInt(input.confirmations ?? 1);
+  const latestBlock = input.toBlock ?? await client.getBlockNumber();
+  const toBlock = latestBlock > confirmations ? latestBlock - confirmations : 0n;
+  const lookbackBlocks = input.lookbackBlocks === undefined
+    ? DEFAULT_PROOF_LOOKBACK_BLOCKS
+    : BigInt(input.lookbackBlocks);
+
+  return {
+    fromBlock: input.fromBlock ?? defaultProofFromBlock(toBlock, lookbackBlocks),
+    toBlock,
+  };
+}
+
+function defaultProofFromBlock(toBlock: bigint, lookbackBlocks: bigint): bigint {
+  return toBlock > lookbackBlocks ? toBlock - lookbackBlocks : 0n;
+}
+
+async function getMemoProofLogs(
+  paymentRequest: MemoPaymentRequest,
+  client: ProofPollingClient,
+  range: ProofSearchRange,
+): Promise<readonly ProofMemoLog[]> {
+  return client.getLogs({
+    address: paymentRequest.memoContract,
+    event: MEMO_EVENT,
+    args: { memoId: paymentRequest.memoId },
+    fromBlock: range.fromBlock,
+    toBlock: range.toBlock,
+  });
+}
+
+async function verifyMemoProofCandidates(
+  input: FindMemoPaymentProofInput,
+  client: ProofPollingClient,
+  memoLogs: readonly ProofMemoLog[],
+): Promise<MemoProofCandidateResult> {
+  let lastError: MemoPaymentProofError | undefined;
+
+  for (const memoLog of memoLogs) {
+    const result = await verifyMemoProofCandidate(input, client, memoLog);
+    if (result.status === 'found') {
+      return result;
+    }
+
+    lastError = result.lastError ?? lastError;
+  }
+
+  return { status: 'pending', lastError };
+}
+
+async function verifyMemoProofCandidate(
+  input: FindMemoPaymentProofInput,
+  client: ProofPollingClient,
+  memoLog: ProofMemoLog,
+): Promise<MemoProofCandidateResult> {
+  const txHash = memoLog.transactionHash;
+  if (!txHash) {
+    return { status: 'pending' };
+  }
+
+  try {
+    const proof = await verifyMemoPaymentProof({
+      txHash,
+      paymentRequest: input.paymentRequest,
+      publicClient: client,
+      verifiedAt: input.verifiedAt,
+    });
+
+    return { status: 'found', proof, txHash };
+  } catch (error) {
+    if (error instanceof MemoPaymentProofError) {
+      return { status: 'pending', lastError: error };
+    }
+
+    throw error;
+  }
 }
 
 export function createMemoPaymentProofFromReceipt(params: {

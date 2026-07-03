@@ -30,6 +30,7 @@ export {
   ArcReceiptWatcher,
   type ArcReceiptWatcherConfig,
   type ArcReceiptWatcherLifecycleEvent,
+  type ReceiptWatcherClient,
 } from './watcher.js';
 export {
   MemoPaymentProofError,
@@ -37,6 +38,10 @@ export {
   verifyMemoPaymentProof,
   type FindMemoPaymentProofInput,
   type FindMemoPaymentProofResult,
+  type ProofClient,
+  type ProofMemoLog,
+  type ProofPollingClient,
+  type ProofTransactionReceipt,
   type VerifyMemoPaymentProofFailureReason,
   type VerifyMemoPaymentProofInput,
   type VerifyMemoPaymentProofResult,

@@ -19,7 +19,7 @@ import { createPaywallMiddleware, type PaywallConfig } from './paywall.js';
 import { HTTP_402, PAYMENT_REQUIRED_HEADER } from '../constants.js';
 
 type NextRequest = Request;
-type NextRouteHandler = (request: NextRequest) => Promise<Response> | Response;
+export type NextRouteHandler = (request: Request) => Promise<Response> | Response;
 
 /**
  * Wrap a Next.js route handler with x402 paywall protection.

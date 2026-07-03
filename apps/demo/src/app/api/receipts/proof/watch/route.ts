@@ -1,5 +1,4 @@
 import {
-  MemoPaymentProofError,
   createReceipt,
   findMemoPaymentProof,
   stablecoinUnitsToString,
@@ -7,6 +6,7 @@ import {
   type FindMemoPaymentProofResult,
   type MemoPaymentRequest,
 } from '@arc-nano-kit/sdk/receipts';
+import { jsonSafeResponse, proofErrorResponse } from '../responses';
 
 export const dynamic = 'force-dynamic';
 
@@ -16,9 +16,41 @@ interface WatchProofRequest {
   fromBlock?: string;
 }
 
+interface ValidWatchProofRequest {
+  invoice: ArcInvoice;
+  paymentRequest: MemoPaymentRequest;
+  fromBlock?: string;
+}
+
 export async function POST(request: Request) {
   const body = (await request.json()) as WatchProofRequest;
+  const proofRequest = validateWatchProofRequest(body);
+  if (proofRequest instanceof Response) {
+    return proofRequest;
+  }
 
+  try {
+    const result = await findMemoPaymentProof({
+      paymentRequest: proofRequest.paymentRequest,
+      fromBlock: parseOptionalBlock(proofRequest.fromBlock),
+    });
+
+    if (result.status === 'pending') {
+      return jsonSafeResponse(result);
+    }
+
+    const receipt = createProofReceipt(proofRequest.invoice, result);
+    return jsonSafeResponse({ ...result, receipt });
+  } catch (error) {
+    return proofErrorResponse(
+      error,
+      'Unknown proof polling error',
+      'proof_polling_failed',
+    );
+  }
+}
+
+function validateWatchProofRequest(body: WatchProofRequest): ValidWatchProofRequest | Response {
   if (!body.invoice || !body.paymentRequest) {
     return Response.json(
       { error: 'Missing invoice or payment request', reason: 'missing_payment_request' },
@@ -26,32 +58,11 @@ export async function POST(request: Request) {
     );
   }
 
-  try {
-    const result = await findMemoPaymentProof({
-      paymentRequest: body.paymentRequest,
-      fromBlock: parseOptionalBlock(body.fromBlock),
-    });
-
-    if (result.status === 'pending') {
-      return Response.json(toJsonSafe(result));
-    }
-
-    const receipt = createProofReceipt(body.invoice, result);
-    return Response.json(toJsonSafe({ ...result, receipt }));
-  } catch (error) {
-    if (error instanceof MemoPaymentProofError) {
-      return Response.json(
-        { error: error.message, reason: error.reason },
-        { status: 422 },
-      );
-    }
-
-    const message = error instanceof Error ? error.message : 'Unknown proof polling error';
-    return Response.json(
-      { error: message, reason: 'proof_polling_failed' },
-      { status: 500 },
-    );
-  }
+  return {
+    invoice: body.invoice,
+    paymentRequest: body.paymentRequest,
+    fromBlock: body.fromBlock,
+  };
 }
 
 function createProofReceipt(invoice: ArcInvoice, result: Extract<FindMemoPaymentProofResult, { status: 'found' }>) {
@@ -86,22 +97,4 @@ function parseOptionalBlock(value?: string): bigint | undefined {
   }
 
   return BigInt(value);
-}
-
-function toJsonSafe(value: unknown): unknown {
-  if (typeof value === 'bigint') {
-    return value.toString();
-  }
-
-  if (Array.isArray(value)) {
-    return value.map((item) => toJsonSafe(item));
-  }
-
-  if (value && typeof value === 'object') {
-    return Object.fromEntries(
-      Object.entries(value).map(([key, nested]) => [key, toJsonSafe(nested)]),
-    );
-  }
-
-  return value;
 }
