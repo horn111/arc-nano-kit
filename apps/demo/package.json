@@ -13,8 +13,7 @@
     "@arc-nano-kit/sdk": "*",
     "next": "^15.0.0",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0",
-    "viem": "^2.21.0"
+    "react-dom": "^19.0.0"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

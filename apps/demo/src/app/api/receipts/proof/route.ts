@@ -1,11 +1,11 @@
 import {
-  MemoPaymentProofError,
   createReceipt,
   stablecoinUnitsToString,
   verifyMemoPaymentProof,
   type ArcInvoice,
   type MemoPaymentRequest,
 } from '@arc-nano-kit/sdk/receipts';
+import { jsonSafeResponse, proofErrorResponse } from './responses';
 
 export const dynamic = 'force-dynamic';
 
@@ -15,36 +15,32 @@ interface ProofRequest {
   paymentRequest?: MemoPaymentRequest;
 }
 
+interface ValidProofRequest {
+  txHash: `0x${string}`;
+  invoice: ArcInvoice;
+  paymentRequest: MemoPaymentRequest;
+}
+
 export async function POST(request: Request) {
   const body = (await request.json()) as ProofRequest;
-
-  if (!body.txHash || !isTxHash(body.txHash)) {
-    return Response.json(
-      { error: 'Missing or invalid Arc Testnet tx hash', reason: 'invalid_tx_hash' },
-      { status: 400 },
-    );
-  }
-
-  if (!body.invoice || !body.paymentRequest) {
-    return Response.json(
-      { error: 'Missing invoice or payment request', reason: 'missing_payment_request' },
-      { status: 400 },
-    );
+  const proofRequest = validateProofRequest(body);
+  if (proofRequest instanceof Response) {
+    return proofRequest;
   }
 
   try {
     const proof = await verifyMemoPaymentProof({
-      txHash: body.txHash,
-      paymentRequest: body.paymentRequest,
+      txHash: proofRequest.txHash,
+      paymentRequest: proofRequest.paymentRequest,
     });
-    const receipt = createReceipt(body.invoice, {
+    const receipt = createReceipt(proofRequest.invoice, {
       txHash: proof.txHash,
       from: proof.payer,
       to: proof.payTo,
       amount: stablecoinUnitsToString(BigInt(proof.amountUnits)),
-      currency: body.invoice.currency,
+      currency: proofRequest.invoice.currency,
       network: proof.network,
-      memo: body.invoice.memo,
+      memo: proofRequest.invoice.memo,
       memoId: proof.memoId,
       callDataHash: proof.callDataHash,
       blockNumber: proof.blockNumber,
@@ -57,41 +53,49 @@ export async function POST(request: Request) {
       },
     });
 
-    return Response.json(toJsonSafe({ proof, receipt }));
+    return jsonSafeResponse({ proof, receipt });
   } catch (error) {
-    if (error instanceof MemoPaymentProofError) {
-      return Response.json(
-        { error: error.message, reason: error.reason },
-        { status: 422 },
-      );
-    }
-
-    const message = error instanceof Error ? error.message : 'Unknown proof verification error';
-    return Response.json(
-      { error: message, reason: 'proof_verification_failed' },
-      { status: 500 },
+    return proofErrorResponse(
+      error,
+      'Unknown proof verification error',
+      'proof_verification_failed',
     );
   }
+}
+
+function validateProofRequest(body: ProofRequest): ValidProofRequest | Response {
+  const txHash = parseTxHash(body.txHash);
+  if (!txHash) {
+    return Response.json(
+      { error: 'Missing or invalid Arc Testnet tx hash', reason: 'invalid_tx_hash' },
+      { status: 400 },
+    );
+  }
+
+  if (!hasPaymentRequest(body)) {
+    return Response.json(
+      { error: 'Missing invoice or payment request', reason: 'missing_payment_request' },
+      { status: 400 },
+    );
+  }
+
+  return {
+    txHash,
+    invoice: body.invoice,
+    paymentRequest: body.paymentRequest,
+  };
+}
+
+function parseTxHash(value?: string): `0x${string}` | null {
+  return value && isTxHash(value) ? value : null;
+}
+
+function hasPaymentRequest(
+  body: ProofRequest,
+): body is ProofRequest & { invoice: ArcInvoice; paymentRequest: MemoPaymentRequest } {
+  return Boolean(body.invoice && body.paymentRequest);
 }
 
 function isTxHash(value: string): value is `0x${string}` {
   return /^0x[0-9a-fA-F]{64}$/.test(value);
-}
-
-function toJsonSafe(value: unknown): unknown {
-  if (typeof value === 'bigint') {
-    return value.toString();
-  }
-
-  if (Array.isArray(value)) {
-    return value.map((item) => toJsonSafe(item));
-  }
-
-  if (value && typeof value === 'object') {
-    return Object.fromEntries(
-      Object.entries(value).map(([key, nested]) => [key, toJsonSafe(nested)]),
-    );
-  }
-
-  return value;
 }

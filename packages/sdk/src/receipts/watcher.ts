@@ -22,7 +22,7 @@ const MEMO_EVENT = parseAbiItem(
   'event Memo(address indexed sender,address indexed target,bytes32 callDataHash,bytes32 indexed memoId,bytes memo,uint256 memoIndex)',
 );
 
-type ReceiptWatcherClient = Pick<
+export type ReceiptWatcherClient = Pick<
   PublicClient,
   'getBlockNumber' | 'getLogs' | 'getTransactionReceipt'
 >;
@@ -38,6 +38,20 @@ type MemoLog = {
     memo?: `0x${string}`;
     memoIndex?: bigint;
   };
+};
+
+type CompleteMemoArgs = {
+  sender: `0x${string}`;
+  target: `0x${string}`;
+  callDataHash: `0x${string}`;
+  memoId: `0x${string}`;
+  memoIndex?: bigint;
+};
+
+type MatchedMemoLog = {
+  txHash: `0x${string}`;
+  blockNumber?: bigint;
+  args: CompleteMemoArgs;
 };
 
 export type ArcReceiptWatcherLifecycleEvent =
@@ -182,54 +196,36 @@ export class ArcReceiptWatcher {
     request: MemoPaymentRequest,
     memoLog: MemoLog,
   ): Promise<ArcReceipt | null> {
-    const txHash = memoLog.transactionHash;
-    const args = memoLog.args;
-
-    if (!txHash || !args?.sender || !args.target || !args.callDataHash || !args.memoId) {
-      return null;
-    }
-
-    if (!sameAddress(args.target, request.target)) {
-      return null;
-    }
-
-    if (args.memoId.toLowerCase() !== request.memoId.toLowerCase()) {
-      return null;
-    }
-
-    if (args.callDataHash.toLowerCase() !== request.callDataHash.toLowerCase()) {
-      return null;
-    }
-
-    if (this.ledger.getReceiptByTxHash(txHash, invoice.id)) {
+    const match = this.getUnrecordedMatchingMemoLog(invoice.id, request, memoLog);
+    if (!match) {
       return null;
     }
 
     await this.emit({
       type: 'watcher.memo_seen',
       invoiceId: invoice.id,
-      txHash,
-      blockNumber: memoLog.blockNumber ?? undefined,
+      txHash: match.txHash,
+      blockNumber: match.blockNumber,
     });
 
-    const txReceipt = await this.client.getTransactionReceipt({ hash: txHash });
+    const txReceipt = await this.client.getTransactionReceipt({ hash: match.txHash });
     if (txReceipt.status !== 'success') {
       return null;
     }
 
-    const transfer = extractMatchingTransfer(txReceipt.logs, request, args.sender);
+    const transfer = extractMatchingTransfer(txReceipt.logs, request, match.args.sender);
     if (!transfer) {
       return null;
     }
 
     const onchainProof = createMemoPaymentProofFromReceipt({
-      txHash,
+      txHash: match.txHash,
       paymentRequest: request,
       txReceipt,
     });
 
     const observed: ObservedPayment = {
-      txHash,
+      txHash: match.txHash,
       from: transfer.from,
       to: transfer.to,
       amount: formatUnits(transfer.value, USDC_DECIMALS),
@@ -243,7 +239,7 @@ export class ArcReceiptWatcher {
       observedAt: Date.now(),
       metadata: {
         source: 'arc-testnet-watcher',
-        memoIndex: args.memoIndex?.toString(),
+        memoIndex: match.args.memoIndex?.toString(),
         explorerUrl: onchainProof.explorerUrl,
       },
     };
@@ -252,6 +248,23 @@ export class ArcReceiptWatcher {
     await this.onReceipt?.(receipt, invoice);
     await this.emit({ type: 'watcher.receipt_created', invoiceId: invoice.id, receipt });
     return receipt;
+  }
+
+  private getUnrecordedMatchingMemoLog(
+    invoiceId: string,
+    request: MemoPaymentRequest,
+    memoLog: MemoLog,
+  ): MatchedMemoLog | null {
+    const match = getMatchingMemoLog(memoLog, request);
+    if (!match) {
+      return null;
+    }
+
+    if (this.ledger.getReceiptByTxHash(match.txHash, invoiceId)) {
+      return null;
+    }
+
+    return match;
   }
 
   private async emit(event: ArcReceiptWatcherLifecycleEvent): Promise<void> {
@@ -312,6 +325,35 @@ function extractMatchingTransfer(
   }
 
   return null;
+}
+
+function getMatchingMemoLog(memoLog: MemoLog, request: MemoPaymentRequest): MatchedMemoLog | null {
+  const txHash = memoLog.transactionHash;
+  const args = memoLog.args;
+
+  if (!txHash || !hasCompleteMemoArgs(args)) {
+    return null;
+  }
+
+  if (!memoArgsMatchRequest(args, request)) {
+    return null;
+  }
+
+  return {
+    txHash,
+    blockNumber: memoLog.blockNumber ?? undefined,
+    args,
+  };
+}
+
+function hasCompleteMemoArgs(args: MemoLog['args']): args is CompleteMemoArgs {
+  return Boolean(args?.sender && args.target && args.callDataHash && args.memoId);
+}
+
+function memoArgsMatchRequest(args: CompleteMemoArgs, request: MemoPaymentRequest): boolean {
+  return sameAddress(args.target, request.target)
+    && args.memoId.toLowerCase() === request.memoId.toLowerCase()
+    && args.callDataHash.toLowerCase() === request.callDataHash.toLowerCase();
 }
 
 function sameAddress(a: `0x${string}`, b: `0x${string}`): boolean {
