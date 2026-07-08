@@ -26,6 +26,10 @@ export type DemoReceiptStoreSummary = {
   watcherCursorCount: number;
 };
 
+type SqliteReceiptStoreModule = {
+  createSqliteReceiptStore(config: { path: string }): ReceiptStore;
+};
+
 export async function getDemoReceiptStore(): Promise<ReceiptStore> {
   if (globalWebhookInbox.__arcNanoKitReceiptStore) {
     return globalWebhookInbox.__arcNanoKitReceiptStore;
@@ -35,7 +39,7 @@ export async function getDemoReceiptStore(): Promise<ReceiptStore> {
   globalWebhookInbox.__arcNanoKitReceiptStoreMode = mode;
 
   if (mode === 'sqlite') {
-    const { createSqliteReceiptStore } = await import('@arc-nano-kit/sqlite');
+    const { createSqliteReceiptStore } = await importOptionalSqliteStore();
     const store = createSqliteReceiptStore({
       path: process.env.ARC_RECEIPTS_SQLITE_PATH
         ?? join(process.cwd(), '.arc-nano-kit', 'receipts.sqlite'),
@@ -80,4 +84,18 @@ export async function getDemoReceiptStoreSummary(): Promise<DemoReceiptStoreSumm
 
 function getDemoReceiptStoreMode(): DemoReceiptStoreMode {
   return process.env.ARC_RECEIPTS_STORE === 'sqlite' ? 'sqlite' : 'memory';
+}
+
+async function importOptionalSqliteStore(): Promise<SqliteReceiptStoreModule> {
+  try {
+    const runtimeImport = new Function('specifier', 'return import(specifier)') as (
+      specifier: string,
+    ) => Promise<SqliteReceiptStoreModule>;
+    return await runtimeImport('@arc-nano-kit/sqlite');
+  } catch (error) {
+    throw new Error(
+      'ARC_RECEIPTS_STORE=sqlite requires the optional @arc-nano-kit/sqlite package to be installed and built.',
+      { cause: error },
+    );
+  }
 }
