@@ -2,7 +2,7 @@
 
 Core SDK package for `arc-nano-kit`.
 
-It includes paid API middleware, buyer SDK helpers, billing helpers, Arc Receipts, watcher logic, read-only Arc Testnet proof polling and verification, signed webhooks, and local webhook inbox replay for Arc payment workflows.
+It includes paid API middleware, buyer SDK helpers, billing helpers, Arc Receipts, persistent receipt store interfaces, watcher logic, read-only Arc Testnet proof polling and verification, signed webhooks, and local webhook inbox replay for Arc payment workflows.
 
 ## Installation
 
@@ -53,6 +53,9 @@ console.log(response.data);
 import {
   ReceiptLedger,
   WebhookInbox,
+  InMemoryReceiptStore,
+  PersistentReceiptLedger,
+  PersistentWebhookInbox,
   createMemoPaymentRequest,
   findMemoPaymentProof,
   serializeWebhookPayload,
@@ -60,15 +63,16 @@ import {
   verifyMemoPaymentProof,
 } from '@arc-nano-kit/sdk/receipts';
 
-const ledger = new ReceiptLedger();
+const store = new InMemoryReceiptStore();
+const ledger = new PersistentReceiptLedger({ store });
 
-const invoice = ledger.createInvoice({
+const invoice = await ledger.createInvoice({
   id: 'inv_123',
   amount: '19.00',
   payTo: '0x1111111111111111111111111111111111111111',
 });
 
-const receipt = ledger.recordPayment(invoice.id, {
+const receipt = await ledger.recordPayment(invoice.id, {
   from: '0x2222222222222222222222222222222222222222',
   to: invoice.payTo,
   amount: '19.00',
@@ -83,17 +87,17 @@ const proof = await verifyMemoPaymentProof({
   paymentRequest,
 });
 
-const event = ledger.listWebhookEvents().at(-1)!;
+const event = (await ledger.listWebhookEvents()).at(-1)!;
 const signed = signWebhookEvent(event, 'secret');
 
-const inbox = new WebhookInbox();
-const delivery = inbox.receive({
+const inbox = new PersistentWebhookInbox({ store });
+const delivery = await inbox.receive({
   payload: serializeWebhookPayload(event),
   header: signed.header,
   secret: 'secret',
 });
 
-const replay = inbox.replay({
+const replay = await inbox.replay({
   event,
   secret: 'secret',
   replayOf: delivery.id,
@@ -114,15 +118,15 @@ console.log(replay.attempt);   // 2
 | Client | `@arc-nano-kit/sdk/client` | Buyer SDK for `402 -> sign -> retry` flows |
 | Billing | `@arc-nano-kit/sdk/billing` | Usage metering and billing plans |
 | Gateway | `@arc-nano-kit/sdk/gateway` | Small Arc Testnet balance helper |
-| Receipts | `@arc-nano-kit/sdk/receipts` | Invoices, memos, watcher, onchain proof polling, receipts, signed webhooks, inbox replay |
+| Receipts | `@arc-nano-kit/sdk/receipts` | Invoices, memos, stores, watcher, onchain proof polling, receipts, signed webhooks, inbox replay |
 
 ## Current Limits
 
-- Receipt storage is in-memory.
+- Core SDK includes store interfaces and in-memory persistence helpers.
+- SQLite is available through optional `@arc-nano-kit/sqlite`.
 - Onchain proof mode is read-only and does not send transactions.
 - Auto proof polling is local and does not replace a hosted indexer or persistent cursor.
-- Webhook delivery attempts are in-memory.
-- Watcher cursors are not persisted yet.
+- Postgres storage is planned, not shipped.
 - Gateway helpers do not yet include deposit tracking or pending settlement state.
 
 ## Docs
@@ -132,6 +136,7 @@ console.log(replay.attempt);   // 2
 - [Demo Script](../../docs/demo-script.md)
 - [Onchain Proof](../../docs/onchain-proof.md)
 - [Arc Receipts](../../docs/receipts.md)
+- [Persistence](../../docs/persistence.md)
 
 ## License
 

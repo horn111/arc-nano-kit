@@ -11,7 +11,7 @@
 <p align="center">
   <strong>Open-source payment operations toolkit for Arc builders.</strong>
   <br />
-  Paid APIs, invoices, transaction memos, receipts, watcher proof polling, signed webhooks, and local delivery replay.
+  Paid APIs, invoices, transaction memos, persistent receipts, watcher proof polling, signed webhooks, and local delivery replay.
 </p>
 
 <p align="center">
@@ -79,12 +79,13 @@ This is not a hosted dashboard or production queue yet. It is a developer-facing
 | Billing engine | Ready | Per-request, per-second, and per-job pricing helpers. |
 | Usage metering | Ready | In-memory usage records and summaries. |
 | CLI scaffolder | Ready in repo | `packages/create-arc-nano-kit` generates Express or Next.js paid API starters. |
-| Arc Receipts | Ready | Invoices, memos, receipts, signed webhook events, and in-memory ledger. |
+| Arc Receipts | Ready | Invoices, memos, receipts, signed webhook events, in-memory ledger, and persistent ledger APIs. |
 | Arc Testnet watcher | Ready | Watches memo-wrapped USDC payments and records matching receipts locally. |
 | Arc Testnet proof mode | Ready | Polls Memo logs or verifies a pasted tx hash against a memo payment request and returns block/log proof. |
 | Webhook Inbox + Replay | Ready | Verifies signed webhook delivery attempts and replays events locally. |
+| SQLite receipt store | Ready | Optional `@arc-nano-kit/sqlite` package for local invoices, receipts, webhook deliveries, and watcher cursors. |
 | Demo app | Ready locally | Next.js demo with paid endpoints, watcher flow, onchain proof, inbox verification, and replay. |
-| Persistent receipt store | Planned | SQLite/Postgres adapter is a next-step production feature. |
+| Postgres receipt store | Planned | Postgres adapter is deferred until after SQLite/local persistence. |
 | Hosted dashboard | Planned | Analytics UI and managed ops surface are not part of the current MVP. |
 | Fastify/Hono/Python/Go adapters | Planned | Current framework adapters are Express and Next.js. |
 
@@ -268,6 +269,27 @@ console.log(delivery.status); // verified
 console.log(replay.attempt);  // 2
 ```
 
+### Persistent Receipts With SQLite
+
+```typescript
+import { PersistentReceiptLedger } from '@arc-nano-kit/sdk/receipts';
+import { createSqliteReceiptStore } from '@arc-nano-kit/sqlite';
+
+const store = createSqliteReceiptStore({
+  path: '.arc-nano-kit/receipts.sqlite',
+});
+
+const ledger = new PersistentReceiptLedger({ store });
+
+const invoice = await ledger.createInvoice({
+  id: 'inv_persistent_123',
+  amount: '19.00',
+  payTo: '0x1111111111111111111111111111111111111111',
+});
+
+console.log(invoice.id);
+```
+
 ## Running The Demo
 
 ```bash
@@ -348,8 +370,12 @@ The current Gateway client is intentionally small: it checks Arc Testnet native 
 ```typescript
 import {
   ArcReceiptWatcher,
+  InMemoryReceiptStore,
+  PersistentReceiptLedger,
+  PersistentWebhookInbox,
   ReceiptLedger,
   WebhookInbox,
+  createWebhookRouteHandler,
   createInvoiceMemo,
   createMemoPaymentRequest,
   signWebhookEvent,
@@ -358,39 +384,42 @@ import {
 } from '@arc-nano-kit/sdk/receipts';
 ```
 
-Receipts are the strongest current module and the center of near-term development.
+Receipts are the strongest current module and the center of near-term development. The core SDK now exposes store interfaces and persistent ledger/inbox helpers; local SQLite persistence lives in the optional `@arc-nano-kit/sqlite` package.
 
 ## Project Structure
 
 ```text
 arc-nano-kit/
-├── apps/
-│   └── demo/
-│       ├── src/app/page.tsx
-│       └── src/app/api/
-│           ├── joke/
-│           ├── weather/
-│           ├── receipts/
-│           └── webhook-inbox/
-├── packages/
-│   ├── sdk/
-│   │   └── src/
-│   │       ├── billing/
-│   │       ├── client/
-│   │       ├── gateway/
-│   │       ├── middleware/
-│   │       └── receipts/
-│   └── create-arc-nano-kit/
-│       └── src/
-├── docs/
-│   ├── architecture.md
-│   ├── demo-script.md
-│   ├── grant.md
-│   ├── getting-started.md
-│   ├── receipts.md
-│   └── why-arc.md
-├── ROADMAP.md
-└── CHANGELOG.md
+|-- apps/
+|   `-- demo/
+|       |-- src/app/page.tsx
+|       `-- src/app/api/
+|           |-- joke/
+|           |-- weather/
+|           |-- receipts/
+|           `-- webhook-inbox/
+|-- packages/
+|   |-- sdk/
+|   |   `-- src/
+|   |       |-- billing/
+|   |       |-- client/
+|   |       |-- gateway/
+|   |       |-- middleware/
+|   |       `-- receipts/
+|   |-- sqlite/
+|   |   `-- src/
+|   `-- create-arc-nano-kit/
+|       `-- src/
+|-- docs/
+|   |-- architecture.md
+|   |-- demo-script.md
+|   |-- grant.md
+|   |-- getting-started.md
+|   |-- persistence.md
+|   |-- receipts.md
+|   `-- why-arc.md
+|-- ROADMAP.md
+`-- CHANGELOG.md
 ```
 
 ## Why Arc
@@ -412,8 +441,8 @@ That makes Arc a natural environment for:
 
 This repo is still early. The current implementation is useful for local development, demos, and SDK iteration, but several production pieces are intentionally not finished yet:
 
-- no persistent receipt database
-- no persistent watcher cursor
+- SQLite local persistence is available; Postgres is planned
+- no hosted persistent database
 - no hosted dashboard
 - no managed webhook queue
 - no Fastify/Hono/Python/Go adapters yet
@@ -431,14 +460,17 @@ This repo is still early. The current implementation is useful for local develop
 - Arc Testnet receipt watcher
 - signed webhook helpers
 - local Webhook Inbox + Replay
+- persistent receipt store interfaces
+- optional SQLite receipt store
+- persistent watcher cursors
+- signed webhook route helper
 - local Next.js demo
 - repo-local CLI scaffolder
 
 ### Next
 
-- persistent receipt store
-- persistent watcher cursor
-- Next.js webhook route helpers
+- Postgres receipt store
+- import/export for local demo data
 - refund and partial refund states
 - stronger Gateway readiness helpers
 - cleaner hosted demo flow

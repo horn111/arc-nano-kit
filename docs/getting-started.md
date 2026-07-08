@@ -9,6 +9,7 @@ This guide shows the current `arc-nano-kit` developer workflow: paid API middlew
 - A wallet private key if you want to test buyer-side signing against your own endpoints
 
 The local demo does not require a hosted dashboard, database, or production webhook queue.
+For restart-safe local receipt storage, set `ARC_RECEIPTS_STORE=sqlite` before starting the demo.
 
 ## Install The SDK
 

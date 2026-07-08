@@ -165,6 +165,35 @@ console.log(replay.attempt);  // 2
 
 The inbox is intentionally in-memory for local payment-ops workflows. A production app should persist delivery attempts in its own database.
 
+## Persistent Receipts
+
+Use `PersistentReceiptLedger` and `PersistentWebhookInbox` when receipts or delivery attempts need to survive process restart.
+
+```typescript
+import {
+  InMemoryReceiptStore,
+  PersistentReceiptLedger,
+  PersistentWebhookInbox,
+} from '@arc-nano-kit/sdk/receipts';
+
+const store = new InMemoryReceiptStore();
+const ledger = new PersistentReceiptLedger({ store });
+const inbox = new PersistentWebhookInbox({ store });
+```
+
+For local SQLite persistence, use the optional `@arc-nano-kit/sqlite` package:
+
+```typescript
+import { PersistentReceiptLedger } from '@arc-nano-kit/sdk/receipts';
+import { createSqliteReceiptStore } from '@arc-nano-kit/sqlite';
+
+const store = createSqliteReceiptStore({
+  path: '.arc-nano-kit/receipts.sqlite',
+});
+
+const ledger = new PersistentReceiptLedger({ store });
+```
+
 ## What ships in the MVP
 
 - `createInvoice()` for invoice ids, stablecoin minor units, Arc payment URIs, memo ids, and invoice memos.
@@ -175,18 +204,19 @@ The inbox is intentionally in-memory for local payment-ops workflows. A producti
 - `createInvoiceMemo()`, `createInvoiceMemoId()`, `createInvoiceMemoData()`, and `parseInvoiceMemo()` for memo correlation.
 - `matchPaymentToInvoice()` to validate amount, recipient, currency, network, memo, memo id, and expiry.
 - `ReceiptLedger` for an in-memory invoice/receipt/event store with duplicate tx protection.
+- `PersistentReceiptLedger`, `InMemoryReceiptStore`, and optional SQLite storage for restart-safe receipts.
 - `signWebhookEvent()` and `verifyWebhookSignature()` for HMAC-signed webhooks.
 - `WebhookInbox` for local signed-webhook verification, delivery attempts, and replay.
+- `PersistentWebhookInbox` for store-backed signed-webhook verification, delivery attempts, and replay.
 
 ## Current Limits
 
-The watcher is intentionally local-first and polling-based. Proof mode is read-only. Auto proof polling is local and does not persist scan cursors. The module does not yet run a hosted indexer, use Circle event monitors, watch Gateway settlement, or store receipts in a database.
+The watcher is intentionally local-first and polling-based. Proof mode is read-only. Watcher cursors can now be persisted through a receipt store, but the module does not yet run a hosted indexer, use Circle event monitors, or watch Gateway settlement.
 
 ## Planned Next Steps
 
-- SQLite/Postgres receipt store.
-- Persistent watcher cursor.
-- Next.js webhook route helpers.
+- Postgres receipt store.
+- Import/export for local demo data.
 - Refund receipts and partial refund accounting.
 - Unified Balance readiness states.
 - Demo dashboard for invoice state transitions.

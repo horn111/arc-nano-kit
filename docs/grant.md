@@ -35,6 +35,8 @@ The current repo includes:
 - `BuyerClient` for the `402 -> sign -> retry` client flow.
 - Billing helpers for per-request, per-second, and per-job pricing.
 - `ReceiptLedger` for in-memory invoices, receipts, and webhook events.
+- `PersistentReceiptLedger` and `ReceiptStore` interfaces for restart-safe receipt workflows.
+- Optional `@arc-nano-kit/sqlite` local store for invoices, receipts, webhook deliveries, and watcher cursors.
 - `ArcReceiptWatcher` for memo-wrapped Arc Testnet USDC payments.
 - `findMemoPaymentProof` and `verifyMemoPaymentProof` for read-only Arc Testnet Memo-log polling or tx/log proof against a memo payment request.
 - `WebhookInbox` for local signed webhook verification and replay.
@@ -87,9 +89,9 @@ This is an early open-source SDK and local demo, not a hosted payment platform.
 
 Current limits are explicit:
 
-- receipt storage is in-memory;
-- watcher cursors are not persisted;
-- webhook delivery attempts are local/in-memory;
+- the default hosted/demo path is in-memory unless local SQLite persistence is enabled;
+- Postgres storage is planned, not shipped;
+- hosted persistent storage is planned, not shipped;
 - onchain proof mode is read-only and does not broadcast transactions;
 - auto proof polling is local and does not replace a hosted indexer or persistent watcher cursor;
 - default middleware verification is not a production Gateway verification path unless the app provides a custom verifier;
@@ -102,7 +104,7 @@ Current limits are explicit:
 The most useful funded milestones are:
 
 1. Persistent receipt store
-   - Add SQLite/Postgres adapters for invoices, receipts, webhook events, and delivery attempts.
+   - SQLite local persistence is shipped; Postgres is the next persistent backend.
 
 2. Persistent watcher cursor
    - Persist scan state so local watcher processes can restart safely without reprocessing already matched payments.

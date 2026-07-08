@@ -1,5 +1,5 @@
 import type { WebhookEvent } from '@arc-nano-kit/sdk/receipts';
-import { DEMO_WEBHOOK_SECRET, DEMO_WEBHOOK_TARGET, webhookInbox } from '../store';
+import { DEMO_WEBHOOK_SECRET, DEMO_WEBHOOK_TARGET, getDemoWebhookInbox } from '../store';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,7 +18,8 @@ export async function POST(request: Request) {
     );
   }
 
-  const delivery = webhookInbox.replay({
+  const inbox = await getDemoWebhookInbox();
+  const delivery = await inbox.replay({
     event: body.event,
     secret: DEMO_WEBHOOK_SECRET,
     target: DEMO_WEBHOOK_TARGET,

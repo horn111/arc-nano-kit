@@ -48,24 +48,24 @@
 
 ### Persistent Receipt Store
 
-- [ ] SQLite receipt store adapter
+- [x] SQLite receipt store adapter
 - [ ] Postgres receipt store adapter
-- [ ] Persistent invoices, receipts, webhook events, and delivery attempts
+- [x] Persistent invoices, receipts, webhook events, and delivery attempts
 - [ ] Import/export path for local demo data
 
 ### Persistent Watcher Cursor
 
-- [ ] Store last scanned block per watched invoice or memo id
-- [ ] Resume watcher safely after process restart
-- [ ] Avoid duplicate receipt creation after replayed scans
-- [ ] Expose cursor state for local debugging
+- [x] Store last scanned block per watched invoice or memo id
+- [x] Resume watcher safely after process restart
+- [x] Avoid duplicate receipt creation after replayed scans
+- [x] Expose cursor state for local debugging
 
 ### Next.js Webhook Route Helpers
 
-- [ ] Raw body reader for signed webhook payloads
-- [ ] `x-arc-signature` verification helper
-- [ ] Delivery attempt recording helper
-- [ ] Typed success/failure responses for route handlers
+- [x] Raw body reader for signed webhook payloads
+- [x] `x-arc-signature` verification helper
+- [x] Delivery attempt recording helper
+- [x] Typed success/failure responses for route handlers
 
 ### Refund And Partial Refund State
 
