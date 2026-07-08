@@ -90,6 +90,12 @@ The important proof is not only that a receipt object exists. The demo proves ve
 
 The optional onchain proof path connects the same receipt shape to a concrete Arc Testnet transaction, block, Memo event, and Arcscan link. Reviewers can use automatic Memo-log polling or paste a known tx hash.
 
+The demo reports the active receipt store mode. By default it uses an in-memory store. For local SQLite persistence, run:
+
+```bash
+ARC_RECEIPTS_STORE=sqlite npm run dev
+```
+
 ## API Fallback Check
 
 If the browser UI is unavailable, run the flow through local API routes after `npm run dev`.
@@ -152,8 +158,8 @@ replayOf: <first delivery id>
 
 ## Notes For Grant Reviewers
 
-- The inbox is intentionally in-memory for the current milestone.
+- The default hosted/demo inbox is in-memory unless `ARC_RECEIPTS_STORE=sqlite` is set locally.
 - Onchain proof mode is read-only and does not send transactions.
-- Auto proof polling is local and read-only; it is not a hosted indexer or persistent watcher cursor.
-- Persistence, watcher cursors, webhook route helpers, and refund states are planned grant milestones.
+- Auto proof polling is local and read-only; it is not a hosted indexer.
+- SQLite persistence, watcher cursors, and webhook route helpers are available locally; Postgres and refund states are planned next.
 - The current demo is designed to prove the local developer workflow, not to replace a production payment processor or hosted dashboard.

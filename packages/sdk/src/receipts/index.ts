@@ -59,6 +59,35 @@ export {
   type ReplayWebhookInput,
   type WebhookDeliveryFilter,
 } from './webhook-inbox.js';
+export {
+  PersistentReceiptLedger,
+  type PersistentReceiptLedgerConfig,
+} from './persistent-ledger.js';
+export {
+  PersistentWebhookInbox,
+  type PersistentReceiveWebhookInput,
+  type PersistentReplayWebhookInput,
+  type PersistentWebhookInboxConfig,
+} from './persistent-webhook-inbox.js';
+export {
+  InMemoryReceiptStore,
+  createWatcherCursorKey,
+  type ReceiptStore,
+  type ReceiptStoreDeliveryFilter,
+  type ReceiptStoreEventFilter,
+  type ReceiptStoreInvoiceFilter,
+  type WatcherCursor,
+  type WatcherCursorKeyInput,
+} from './store.js';
+export {
+  parseReceiptStoreValue,
+  serializeReceiptStoreValue,
+} from './serialization.js';
+export {
+  createWebhookRouteHandler,
+  type WebhookRouteHandlerConfig,
+  type WebhookRouteResult,
+} from './webhook-route.js';
 export type {
   ArcInvoice,
   ArcReceipt,

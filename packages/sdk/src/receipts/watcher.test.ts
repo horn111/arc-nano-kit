@@ -7,6 +7,7 @@ import {
 import { ARC_TESTNET_CONTRACTS } from '../constants.js';
 import { ReceiptLedger } from './ledger.js';
 import { ARC_MEMO_ABI, createMemoPaymentRequest } from './memo-payment.js';
+import { InMemoryReceiptStore, createWatcherCursorKey } from './store.js';
 import { ArcReceiptWatcher } from './watcher.js';
 
 const seller = '0x1111111111111111111111111111111111111111' as const;
@@ -89,11 +90,58 @@ describe('ArcReceiptWatcher', () => {
 
     expect(receipts).toHaveLength(0);
   });
+
+  it('resumes polling from a persisted watcher cursor', async () => {
+    const store = new InMemoryReceiptStore();
+    const firstLedger = new ReceiptLedger();
+    const invoice = firstLedger.createInvoice({ id: 'inv_cursor', amount: '19.00', payTo: seller });
+    const request = createMemoPaymentRequest(invoice);
+    const cursorKey = createWatcherCursorKey({
+      network: invoice.network,
+      invoiceId: invoice.id,
+      memoId: request.memoId,
+    });
+    const firstClient = createMockClient({
+      memoLogs: [],
+      receiptLogs: [],
+    });
+    const firstWatcher = new ArcReceiptWatcher({
+      ledger: firstLedger,
+      publicClient: firstClient,
+      cursorStore: store,
+    });
+
+    firstWatcher.watchInvoice(invoice, { fromBlock: 10n });
+    await firstWatcher.pollOnce();
+
+    expect((await store.getWatcherCursor(cursorKey))?.nextFromBlock).toBe(12n);
+
+    const secondLedger = new ReceiptLedger();
+    secondLedger.addInvoice(invoice);
+    const secondClient = createMockClient({
+      latestBlock: 14n,
+      memoLogs: [],
+      receiptLogs: [],
+    });
+    const secondWatcher = new ArcReceiptWatcher({
+      ledger: secondLedger,
+      publicClient: secondClient,
+      cursorStore: store,
+    });
+
+    secondWatcher.watchInvoice(invoice);
+    await secondWatcher.pollOnce();
+
+    expect(secondClient.getLogs).toHaveBeenCalledWith(expect.objectContaining({
+      fromBlock: 12n,
+      toBlock: 13n,
+    }));
+  });
 });
 
-function createMockClient(params: { memoLogs: unknown[]; receiptLogs: unknown[] }) {
+function createMockClient(params: { memoLogs: unknown[]; receiptLogs: unknown[]; latestBlock?: bigint }) {
   return {
-    getBlockNumber: vi.fn().mockResolvedValue(12n),
+    getBlockNumber: vi.fn().mockResolvedValue(params.latestBlock ?? 12n),
     getLogs: vi.fn().mockResolvedValue(params.memoLogs),
     getTransactionReceipt: vi.fn().mockResolvedValue({
       status: 'success',

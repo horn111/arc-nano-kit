@@ -55,10 +55,11 @@ See [../../docs/demo-script.md](../../docs/demo-script.md) for the full grant-re
 
 ## Current Limits
 
-- The inbox is in-memory.
-- The receipt ledger is in-memory.
+- The default hosted/demo inbox is in-memory.
+- The default hosted/demo receipt ledger is in-memory.
+- Local SQLite persistence is available with `ARC_RECEIPTS_STORE=sqlite`.
 - Onchain proof mode is read-only and never asks for a private key.
-- Auto proof polling is local and does not replace a hosted indexer or persistent watcher cursor.
+- Auto proof polling is local and does not replace a hosted indexer.
 - The watcher flow is a local developer demo.
 - Hosted dashboard and persistent storage are planned, not shipped.
 

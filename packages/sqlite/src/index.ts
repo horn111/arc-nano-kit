@@ -1,0 +1,339 @@
+import { mkdirSync } from 'node:fs';
+import { createRequire } from 'node:module';
+import { dirname } from 'node:path';
+import type { DatabaseSync as DatabaseSyncType } from 'node:sqlite';
+import {
+  parseReceiptStoreValue,
+  serializeReceiptStoreValue,
+  type ArcInvoice,
+  type ArcReceipt,
+  type ReceiptStore,
+  type ReceiptStoreDeliveryFilter,
+  type ReceiptStoreEventFilter,
+  type ReceiptStoreInvoiceFilter,
+  type WatcherCursor,
+  type WebhookDeliveryAttempt,
+  type WebhookEvent,
+} from '@arc-nano-kit/sdk/receipts';
+
+const require = createRequire(import.meta.url);
+const { DatabaseSync } = require('node:sqlite') as typeof import('node:sqlite');
+
+export interface SqliteReceiptStoreConfig {
+  path: string;
+  createDirectory?: boolean;
+}
+
+type PayloadRow = {
+  payload: string;
+};
+
+export class SqliteReceiptStore implements ReceiptStore {
+  private readonly db: DatabaseSyncType;
+
+  constructor(config: SqliteReceiptStoreConfig) {
+    if (config.path !== ':memory:' && config.createDirectory !== false) {
+      mkdirSync(dirname(config.path), { recursive: true });
+    }
+
+    this.db = new DatabaseSync(config.path);
+    this.migrate();
+  }
+
+  async saveInvoice(invoice: ArcInvoice): Promise<void> {
+    this.db.prepare(`
+      INSERT INTO arc_invoices (id, status, customer_id, created_at, payload)
+      VALUES (?, ?, ?, ?, ?)
+      ON CONFLICT(id) DO UPDATE SET
+        status = excluded.status,
+        customer_id = excluded.customer_id,
+        created_at = excluded.created_at,
+        payload = excluded.payload
+    `).run(
+      invoice.id,
+      invoice.status,
+      invoice.customerId ?? null,
+      invoice.createdAt,
+      serializeReceiptStoreValue(invoice),
+    );
+  }
+
+  async getInvoice(id: string): Promise<ArcInvoice | undefined> {
+    return parsePayloadRow<ArcInvoice>(this.db.prepare(
+      'SELECT payload FROM arc_invoices WHERE id = ?',
+    ).get(id));
+  }
+
+  async listInvoices(filter: ReceiptStoreInvoiceFilter = {}): Promise<ArcInvoice[]> {
+    return this.allPayloads<ArcInvoice>('SELECT payload FROM arc_invoices ORDER BY created_at ASC')
+      .filter((invoice) => {
+        if (filter.status && invoice.status !== filter.status) {
+          return false;
+        }
+
+        if (filter.customerId && invoice.customerId !== filter.customerId) {
+          return false;
+        }
+
+        return true;
+      });
+  }
+
+  async saveReceipt(receipt: ArcReceipt): Promise<void> {
+    this.db.prepare(`
+      INSERT INTO arc_receipts (id, invoice_id, tx_hash_norm, status, created_at, payload)
+      VALUES (?, ?, ?, ?, ?, ?)
+      ON CONFLICT(id) DO UPDATE SET
+        invoice_id = excluded.invoice_id,
+        tx_hash_norm = excluded.tx_hash_norm,
+        status = excluded.status,
+        created_at = excluded.created_at,
+        payload = excluded.payload
+    `).run(
+      receipt.id,
+      receipt.invoiceId,
+      receipt.txHash?.toLowerCase() ?? null,
+      receipt.status,
+      receipt.createdAt,
+      serializeReceiptStoreValue(receipt),
+    );
+  }
+
+  async getReceipt(id: string): Promise<ArcReceipt | undefined> {
+    return parsePayloadRow<ArcReceipt>(this.db.prepare(
+      'SELECT payload FROM arc_receipts WHERE id = ?',
+    ).get(id));
+  }
+
+  async getReceiptByTxHash(
+    txHash: `0x${string}`,
+    invoiceId?: string,
+  ): Promise<ArcReceipt | undefined> {
+    const row = invoiceId
+      ? this.db.prepare(
+        'SELECT payload FROM arc_receipts WHERE tx_hash_norm = ? AND invoice_id = ? LIMIT 1',
+      ).get(txHash.toLowerCase(), invoiceId)
+      : this.db.prepare(
+        'SELECT payload FROM arc_receipts WHERE tx_hash_norm = ? LIMIT 1',
+      ).get(txHash.toLowerCase());
+
+    return parsePayloadRow<ArcReceipt>(row);
+  }
+
+  async listReceipts(): Promise<ArcReceipt[]> {
+    return this.allPayloads<ArcReceipt>('SELECT payload FROM arc_receipts ORDER BY created_at ASC');
+  }
+
+  async saveWebhookEvent(event: WebhookEvent): Promise<void> {
+    this.db.prepare(`
+      INSERT INTO arc_webhook_events (id, type, created_at, payload)
+      VALUES (?, ?, ?, ?)
+      ON CONFLICT(id) DO UPDATE SET
+        type = excluded.type,
+        created_at = excluded.created_at,
+        payload = excluded.payload
+    `).run(
+      event.id,
+      event.type,
+      event.createdAt,
+      serializeReceiptStoreValue(event),
+    );
+  }
+
+  async listWebhookEvents(filter: ReceiptStoreEventFilter = {}): Promise<WebhookEvent[]> {
+    return this.allPayloads<WebhookEvent>('SELECT payload FROM arc_webhook_events ORDER BY created_at ASC')
+      .filter((event) => !filter.type || event.type === filter.type);
+  }
+
+  async saveWebhookDelivery(delivery: WebhookDeliveryAttempt): Promise<void> {
+    this.db.prepare(`
+      INSERT INTO arc_webhook_deliveries (
+        id,
+        event_id,
+        event_type,
+        attempt,
+        status,
+        received_at,
+        payload
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(id) DO UPDATE SET
+        event_id = excluded.event_id,
+        event_type = excluded.event_type,
+        attempt = excluded.attempt,
+        status = excluded.status,
+        received_at = excluded.received_at,
+        payload = excluded.payload
+    `).run(
+      delivery.id,
+      delivery.eventId,
+      delivery.eventType,
+      delivery.attempt,
+      delivery.status,
+      delivery.receivedAt,
+      serializeReceiptStoreValue(delivery),
+    );
+  }
+
+  async getWebhookDelivery(id: string): Promise<WebhookDeliveryAttempt | undefined> {
+    return parsePayloadRow<WebhookDeliveryAttempt>(this.db.prepare(
+      'SELECT payload FROM arc_webhook_deliveries WHERE id = ?',
+    ).get(id));
+  }
+
+  async listWebhookDeliveries(
+    filter: ReceiptStoreDeliveryFilter = {},
+  ): Promise<WebhookDeliveryAttempt[]> {
+    return this.allPayloads<WebhookDeliveryAttempt>(
+      'SELECT payload FROM arc_webhook_deliveries ORDER BY received_at ASC, attempt ASC',
+    ).filter((delivery) => {
+      if (filter.eventId && delivery.eventId !== filter.eventId) {
+        return false;
+      }
+
+      if (filter.status && delivery.status !== filter.status) {
+        return false;
+      }
+
+      return true;
+    });
+  }
+
+  async getWatcherCursor(key: string): Promise<WatcherCursor | undefined> {
+    return parsePayloadRow<WatcherCursor>(this.db.prepare(
+      'SELECT payload FROM arc_watcher_cursors WHERE key = ?',
+    ).get(key));
+  }
+
+  async listWatcherCursors(): Promise<WatcherCursor[]> {
+    return this.allPayloads<WatcherCursor>(
+      'SELECT payload FROM arc_watcher_cursors ORDER BY updated_at ASC',
+    );
+  }
+
+  async saveWatcherCursor(cursor: WatcherCursor): Promise<void> {
+    this.db.prepare(`
+      INSERT INTO arc_watcher_cursors (
+        key,
+        network,
+        invoice_id,
+        memo_id_norm,
+        next_from_block,
+        updated_at,
+        payload
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(key) DO UPDATE SET
+        network = excluded.network,
+        invoice_id = excluded.invoice_id,
+        memo_id_norm = excluded.memo_id_norm,
+        next_from_block = excluded.next_from_block,
+        updated_at = excluded.updated_at,
+        payload = excluded.payload
+    `).run(
+      cursor.key,
+      cursor.network,
+      cursor.invoiceId ?? null,
+      cursor.memoId?.toLowerCase() ?? null,
+      cursor.nextFromBlock.toString(),
+      cursor.updatedAt,
+      serializeReceiptStoreValue(cursor),
+    );
+  }
+
+  async deleteWatcherCursor(key: string): Promise<void> {
+    this.db.prepare('DELETE FROM arc_watcher_cursors WHERE key = ?').run(key);
+  }
+
+  close(): void {
+    this.db.close();
+  }
+
+  private migrate(): void {
+    this.db.exec(`
+      PRAGMA journal_mode = WAL;
+
+      CREATE TABLE IF NOT EXISTS arc_invoices (
+        id TEXT PRIMARY KEY,
+        status TEXT NOT NULL,
+        customer_id TEXT,
+        created_at INTEGER NOT NULL,
+        payload TEXT NOT NULL
+      );
+
+      CREATE INDEX IF NOT EXISTS arc_invoices_status
+        ON arc_invoices(status);
+
+      CREATE INDEX IF NOT EXISTS arc_invoices_customer_id
+        ON arc_invoices(customer_id);
+
+      CREATE TABLE IF NOT EXISTS arc_receipts (
+        id TEXT PRIMARY KEY,
+        invoice_id TEXT NOT NULL,
+        tx_hash_norm TEXT,
+        status TEXT NOT NULL,
+        created_at INTEGER NOT NULL,
+        payload TEXT NOT NULL
+      );
+
+      CREATE UNIQUE INDEX IF NOT EXISTS arc_receipts_invoice_tx_hash
+        ON arc_receipts(invoice_id, tx_hash_norm)
+        WHERE tx_hash_norm IS NOT NULL;
+
+      CREATE TABLE IF NOT EXISTS arc_webhook_events (
+        id TEXT PRIMARY KEY,
+        type TEXT NOT NULL,
+        created_at INTEGER NOT NULL,
+        payload TEXT NOT NULL
+      );
+
+      CREATE TABLE IF NOT EXISTS arc_webhook_deliveries (
+        id TEXT PRIMARY KEY,
+        event_id TEXT NOT NULL,
+        event_type TEXT NOT NULL,
+        attempt INTEGER NOT NULL,
+        status TEXT NOT NULL,
+        received_at INTEGER NOT NULL,
+        payload TEXT NOT NULL
+      );
+
+      CREATE INDEX IF NOT EXISTS arc_webhook_deliveries_event_id
+        ON arc_webhook_deliveries(event_id);
+
+      CREATE TABLE IF NOT EXISTS arc_watcher_cursors (
+        key TEXT PRIMARY KEY,
+        network TEXT NOT NULL,
+        invoice_id TEXT,
+        memo_id_norm TEXT,
+        next_from_block TEXT NOT NULL,
+        updated_at INTEGER NOT NULL,
+        payload TEXT NOT NULL
+      );
+    `);
+  }
+
+  private allPayloads<T>(sql: string): T[] {
+    return this.db.prepare(sql).all().map((row) => parsePayloadRow<T>(row)!);
+  }
+}
+
+export function createSqliteReceiptStore(config: SqliteReceiptStoreConfig): SqliteReceiptStore {
+  return new SqliteReceiptStore(config);
+}
+
+function parsePayloadRow<T>(row: unknown): T | undefined {
+  if (!isPayloadRow(row)) {
+    return undefined;
+  }
+
+  return parseReceiptStoreValue<T>(row.payload);
+}
+
+function isPayloadRow(value: unknown): value is PayloadRow {
+  return Boolean(
+    value
+      && typeof value === 'object'
+      && 'payload' in value
+      && typeof (value as PayloadRow).payload === 'string',
+  );
+}

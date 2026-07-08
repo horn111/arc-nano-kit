@@ -1,9 +1,13 @@
 import {
-  ReceiptLedger,
   createMemoPaymentRequest,
   signWebhookEvent,
 } from '@arc-nano-kit/sdk/receipts';
-import { DEMO_WEBHOOK_SECRET, DEMO_WEBHOOK_TARGET } from '../webhook-inbox/store';
+import {
+  DEMO_WEBHOOK_SECRET,
+  DEMO_WEBHOOK_TARGET,
+  getDemoReceiptLedger,
+  getDemoReceiptStoreSummary,
+} from '../webhook-inbox/store';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,46 +17,48 @@ const DEMO_TX_HASH = '0x7a6d91b9f5b42e6f9a4d8d5c0a5f1a833f9f94c8b2e7d4d0a0e8c7b6
 
 export async function GET() {
   const now = Date.now();
-  const ledger = new ReceiptLedger();
+  const ledger = await getDemoReceiptLedger();
 
-  const invoice = ledger.createInvoice({
-    id: 'inv_arc_receipts_demo',
-    amount: '19.00',
-    currency: 'USDC',
-    network: 'arc-testnet',
-    payTo: DEMO_SELLER,
-    customerId: 'demo-builder-001',
-    description: 'Arc Testnet watcher demo invoice',
-    createdAt: now,
-    expiresAt: now + 30 * 60 * 1000,
-    metadata: {
-      product: 'Arc Receipts',
-      source: 'demo',
-    },
-  });
+  const invoice = await ledger.getInvoice('inv_arc_receipts_demo')
+    ?? await ledger.createInvoice({
+      id: 'inv_arc_receipts_demo',
+      amount: '19.00',
+      currency: 'USDC',
+      network: 'arc-testnet',
+      payTo: DEMO_SELLER,
+      customerId: 'demo-builder-001',
+      description: 'Arc Testnet watcher demo invoice',
+      createdAt: now,
+      expiresAt: now + 30 * 60 * 1000,
+      metadata: {
+        product: 'Arc Receipts',
+        source: 'demo',
+      },
+    });
 
   const paymentRequest = createMemoPaymentRequest(invoice);
 
-  const receipt = ledger.recordPayment(invoice.id, {
-    txHash: DEMO_TX_HASH,
-    from: DEMO_PAYER,
-    to: invoice.payTo,
-    amount: invoice.amount,
-    currency: invoice.currency,
-    network: invoice.network,
-    memo: invoice.memo,
-    memoId: paymentRequest.memoId,
-    callDataHash: paymentRequest.callDataHash,
-    observedAt: now + 4200,
-    metadata: {
-      watcher: 'arc-testnet',
-      memoContract: paymentRequest.memoContract,
-      memoIndex: '1842',
-    },
-  });
+  const receipt = await ledger.getReceiptByTxHash(DEMO_TX_HASH, invoice.id)
+    ?? await ledger.recordPayment(invoice.id, {
+      txHash: DEMO_TX_HASH,
+      from: DEMO_PAYER,
+      to: invoice.payTo,
+      amount: invoice.amount,
+      currency: invoice.currency,
+      network: invoice.network,
+      memo: invoice.memo,
+      memoId: paymentRequest.memoId,
+      callDataHash: paymentRequest.callDataHash,
+      observedAt: now + 4200,
+      metadata: {
+        watcher: 'arc-testnet',
+        memoContract: paymentRequest.memoContract,
+        memoIndex: '1842',
+      },
+    });
 
-  const paidEvent = ledger
-    .listWebhookEvents()
+  const paidEvent = (await ledger
+    .listWebhookEvents())
     .find((event) => event.type === 'invoice.paid');
 
   if (!paidEvent) {
@@ -63,10 +69,12 @@ export async function GET() {
   }
 
   const signature = signWebhookEvent(paidEvent, DEMO_WEBHOOK_SECRET);
+  const store = await getDemoReceiptStoreSummary();
 
   return Response.json({
     generatedAt: new Date().toISOString(),
     mode: 'local simulation of the Arc Testnet watcher flow',
+    store,
     invoice: {
       id: invoice.id,
       status: 'paid',

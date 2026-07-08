@@ -1,4 +1,5 @@
 import {
+  createWatcherCursorKey,
   createReceipt,
   findMemoPaymentProof,
   stablecoinUnitsToString,
@@ -7,6 +8,7 @@ import {
   type MemoPaymentRequest,
 } from '@arc-nano-kit/sdk/receipts';
 import { jsonSafeResponse, proofErrorResponse } from '../responses';
+import { getDemoReceiptStore } from '../../../webhook-inbox/store';
 
 export const dynamic = 'force-dynamic';
 
@@ -34,6 +36,7 @@ export async function POST(request: Request) {
       paymentRequest: proofRequest.paymentRequest,
       fromBlock: parseOptionalBlock(proofRequest.fromBlock),
     });
+    await saveProofWatchCursor(proofRequest.invoice, proofRequest.paymentRequest, result.nextFromBlock);
 
     if (result.status === 'pending') {
       return jsonSafeResponse(result);
@@ -48,6 +51,29 @@ export async function POST(request: Request) {
       'proof_polling_failed',
     );
   }
+}
+
+async function saveProofWatchCursor(
+  invoice: ArcInvoice,
+  paymentRequest: MemoPaymentRequest,
+  nextFromBlock: bigint,
+): Promise<void> {
+  const store = await getDemoReceiptStore();
+  await store.saveWatcherCursor({
+    key: createWatcherCursorKey({
+      network: invoice.network,
+      invoiceId: invoice.id,
+      memoId: paymentRequest.memoId,
+    }),
+    invoiceId: invoice.id,
+    memoId: paymentRequest.memoId,
+    network: invoice.network,
+    nextFromBlock,
+    updatedAt: Date.now(),
+    metadata: {
+      source: 'demo-proof-watch',
+    },
+  });
 }
 
 function validateWatchProofRequest(body: WatchProofRequest): ValidWatchProofRequest | Response {

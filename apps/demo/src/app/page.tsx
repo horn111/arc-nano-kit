@@ -20,6 +20,14 @@ type TimelineItem = {
 type ReceiptDemo = {
   generatedAt: string;
   mode: string;
+  store: {
+    mode: 'memory' | 'sqlite';
+    persistent: boolean;
+    invoiceCount: number;
+    receiptCount: number;
+    webhookDeliveryCount: number;
+    watcherCursorCount: number;
+  };
   invoice: {
     id: string;
     status: string;
@@ -226,7 +234,7 @@ export default function HomePage() {
     },
     {
       label: 'Receipt generated',
-      detail: 'paid receipt stored locally',
+      detail: receiptDemo?.store.persistent ? 'paid receipt persisted in SQLite' : 'paid receipt stored in memory',
       done: Boolean(receiptDemo?.receipt.id),
     },
     {
@@ -568,6 +576,26 @@ export default function HomePage() {
               <strong>local, replayable payment ops for Arc receipts</strong>
               <p>Run the flow once, then replay the signed webhook to prove delivery state without a dashboard.</p>
             </div>
+            {receiptDemo ? (
+              <div className="store-strip" aria-label="Receipt store status">
+                <div>
+                  <span>Store</span>
+                  <strong>{receiptDemo.store.mode}</strong>
+                </div>
+                <div>
+                  <span>Invoices</span>
+                  <strong>{receiptDemo.store.invoiceCount}</strong>
+                </div>
+                <div>
+                  <span>Receipts</span>
+                  <strong>{receiptDemo.store.receiptCount}</strong>
+                </div>
+                <div>
+                  <span>Cursor</span>
+                  <strong>{proofPollCursor ? formatBlock(proofPollCursor) : receiptDemo.store.watcherCursorCount}</strong>
+                </div>
+              </div>
+            ) : null}
           </div>
         </section>
 
@@ -1199,6 +1227,42 @@ export default function HomePage() {
           color: var(--text-muted);
           font-size: 12px;
           line-height: 1.45;
+        }
+
+        .store-strip {
+          display: grid;
+          grid-template-columns: repeat(4, minmax(0, 1fr));
+          gap: 8px;
+          margin-top: 10px;
+        }
+
+        .store-strip div {
+          min-width: 0;
+          padding: 10px;
+          border: 1px solid var(--border-color);
+          border-radius: 8px;
+          background: var(--bg-canvas);
+        }
+
+        .store-strip span,
+        .store-strip strong {
+          display: block;
+          font-family: JetBrains Mono, Geist Mono, SFMono-Regular, Consolas, monospace;
+        }
+
+        .store-strip span {
+          margin-bottom: 5px;
+          color: var(--text-muted);
+          font-size: 9px;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+        }
+
+        .store-strip strong {
+          color: var(--text-main);
+          font-size: 12px;
+          font-weight: 600;
+          overflow-wrap: anywhere;
         }
 
         .panel-header {
@@ -2172,6 +2236,10 @@ function formatSignatureTimestamp(header: string) {
     .find((part) => part.startsWith('t='));
 
   return timestamp ?? 't=pending';
+}
+
+function formatBlock(value: string) {
+  return value.length > 8 ? `#${value.slice(0, 8)}...` : `#${value}`;
 }
 
 function isTxHash(value: string) {

@@ -3,6 +3,7 @@
  */
 
 import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
+import { serializeReceiptStoreValue } from './serialization.js';
 import type { WebhookEvent, WebhookEventType } from './types.js';
 
 export interface WebhookSignature {
@@ -66,7 +67,7 @@ export function verifyWebhookSignature(params: {
 }
 
 export function serializeWebhookPayload(event: WebhookEvent): string {
-  return JSON.stringify(event);
+  return serializeReceiptStoreValue(event);
 }
 
 function createWebhookSignature(payload: string, secret: string, timestamp: number): string {

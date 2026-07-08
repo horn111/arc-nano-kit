@@ -25,6 +25,7 @@ Developer app
   |           - invoices
   |           - transaction memos
   |           - receipt matching
+  |           - persistent receipt store interfaces
   |           - Arc Testnet watcher
   |           - read-only Arc Testnet proof polling
   |           - signed webhook events
@@ -112,6 +113,7 @@ Receipts are the strongest current module. They cover:
 - matching observed payments to invoices;
 - read-only Arc Testnet proof polling and tx proof;
 - local receipt generation;
+- persistent receipt store interfaces;
 - signed webhook events;
 - local webhook inbox verification;
 - replayable delivery attempts.
@@ -122,10 +124,9 @@ Receipts are the strongest current module. They cover:
 
 Current limits:
 
-- no persistent watcher cursor;
+- SQLite local persistence is available through the optional `@arc-nano-kit/sqlite` package;
 - no hosted indexer;
-- no persisted proof polling cursor;
-- no database-backed receipt store;
+- no hosted database-backed receipt store;
 - no transaction broadcasting in proof mode;
 - no refund state in the current watcher flow.
 
@@ -151,12 +152,11 @@ The demo is designed to prove the developer workflow locally. It is not a produc
 
 ## Planned Extensions
 
-The next architecture step is persistence:
+The next architecture step after SQLite persistence is production storage breadth:
 
 ```text
-in-memory ledger
--> SQLite/Postgres receipt store
--> persistent watcher cursor
+SQLite local receipt store
+-> Postgres receipt store
 -> Next.js webhook route helper
 -> refund and partial refund states
 ```
