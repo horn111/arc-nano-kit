@@ -2,13 +2,13 @@
 
 ## Project
 
-`arc-nano-kit` is an open-source payment operations toolkit for Arc builders.
+`arc-nano-kit` is an open-source TypeScript payment operations toolkit for Arc builders.
 
 It helps developers move beyond "a payment happened" and into application-level payment operations: invoices, transaction memos, receipts, signed webhooks, verified delivery attempts, and local replay.
 
 ## One-Liner
 
-Open-source payment operations toolkit for Arc builders: paid APIs, invoices, memo-based receipts, watcher flows, optional Arc Testnet proof polling, signed webhooks, and local delivery replay.
+Open-source TypeScript kit for operable stablecoin payments on Arc: invoices, memo payment proofs, receipts, signed webhooks, replay, and local persistence.
 
 ## Problem
 
@@ -34,18 +34,20 @@ The current repo includes:
 - Express and Next.js paywall adapters for x402-style `402 Payment Required` flows.
 - `BuyerClient` for the `402 -> sign -> retry` client flow.
 - Billing helpers for per-request, per-second, and per-job pricing.
-- `ReceiptLedger` for in-memory invoices, receipts, and webhook events.
-- `PersistentReceiptLedger` and `ReceiptStore` interfaces for restart-safe receipt workflows.
-- Optional `@arc-nano-kit/sqlite` local store for invoices, receipts, webhook deliveries, and watcher cursors.
+- `ReceiptLedger` for backwards-compatible in-memory invoices, receipts, and webhook events.
+- `ReceiptStore`, `InMemoryReceiptStore`, and `PersistentReceiptLedger` for restart-safe receipt workflows.
+- Optional `@arc-nano-kit/sqlite` local/dev store for invoices, receipts, webhook deliveries, webhook events, and watcher cursors.
 - `ArcReceiptWatcher` for memo-wrapped Arc Testnet USDC payments.
+- Store-backed watcher cursors so local scans can resume from saved block state.
 - `findMemoPaymentProof` and `verifyMemoPaymentProof` for read-only Arc Testnet Memo-log polling or tx/log proof against a memo payment request.
-- `WebhookInbox` for local signed webhook verification and replay.
+- `WebhookInbox` and `PersistentWebhookInbox` for signed webhook verification, delivery recording, and replay.
+- A framework-light webhook route helper for raw body handling, `x-arc-signature` verification, and typed success/failure responses.
 - `create-arc-nano-kit` scaffolder for Express or Next.js paid API starters.
-- A local Next.js demo that shows the payment ops flow end to end.
+- A hosted/local Next.js demo that shows the payment ops flow end to end.
 
-## Shipped Proof Flow
+## Proven Proof Flow
 
-The newest shipped path is:
+The current proof path is:
 
 ```text
 create invoice
@@ -83,6 +85,14 @@ Arc is a natural environment for paid APIs, autonomous agents, usage-based billi
 - creating reusable open-source patterns for Arc Testnet payment operations;
 - making stablecoin payments feel operable, not only payable.
 
+## Why Funding Is Needed
+
+The project has already proven the local Arc Receipts workflow: invoices, memo payment requests, receipt generation, signed webhooks, replay, and local persistence.
+
+Grant funding would move the project from a working local SDK into reusable infrastructure for Arc builders. The funded work focuses on production persistence, durable watcher behavior, refund lifecycle state, framework integrations, and reviewer-friendly hosted demos.
+
+Without funding, the project can continue as a small experimental SDK. With funding, it can become a maintained open-source payment operations layer that other Arc apps can adopt instead of rebuilding receipt, webhook, replay, and reconciliation logic themselves.
+
 ## Current Limits
 
 This is an early open-source SDK and local demo, not a hosted payment platform.
@@ -90,10 +100,10 @@ This is an early open-source SDK and local demo, not a hosted payment platform.
 Current limits are explicit:
 
 - the default hosted/demo path is in-memory unless local SQLite persistence is enabled;
-- Postgres storage is planned, not shipped;
+- SQLite local/dev persistence is shipped, while Postgres production persistence is planned;
 - hosted persistent storage is planned, not shipped;
 - onchain proof mode is read-only and does not broadcast transactions;
-- auto proof polling is local and does not replace a hosted indexer or persistent watcher cursor;
+- watcher cursor persistence exists locally, but does not replace a hosted indexer or durable production watcher runtime;
 - default middleware verification is not a production Gateway verification path unless the app provides a custom verifier;
 - hosted dashboard and analytics are planned, not shipped;
 - Fastify, Hono, Python, and Go adapters are planned, not shipped;
@@ -101,22 +111,22 @@ Current limits are explicit:
 
 ## Grant Milestones
 
-The most useful funded milestones are:
+The most useful funded milestones move the project from a proven local workflow toward reusable production-facing infrastructure:
 
-1. Persistent receipt store
-   - SQLite local persistence is shipped; Postgres is the next persistent backend.
+1. Postgres receipt store and production persistence
+   - Add a Postgres adapter for invoices, receipts, webhook events, delivery attempts, and watcher cursors. Keep SQLite for local/dev and make Postgres the production-oriented backend for hosted apps.
 
-2. Persistent watcher cursor
-   - Persist scan state so local watcher processes can restart safely without reprocessing already matched payments.
+2. Durable watcher runtime
+   - Harden watcher resume behavior with persisted cursor state, idempotent receipt creation, retry-safe scans, structured logs, and examples for long-running server processes.
 
-3. Next.js webhook route helpers
-   - Provide a small route-handler helper that reads raw body, verifies `x-arc-signature`, records a delivery attempt, and returns typed results.
+3. Framework webhook integrations
+   - Ship production-friendly Next.js route helpers plus Express examples for raw body handling, `x-arc-signature` verification, delivery recording, replay, and typed success/failure responses.
 
-4. Refund and partial refund state
-   - Add refund/counter-payment tracking so receipts can model full and partial refund lifecycle states.
+4. Refund and partial refund lifecycle
+   - Add full and partial refund states, counter-payment matching, refund webhook events, and receipt transitions for app-level reconciliation.
 
-5. Hosted demo flow
-   - Publish a reviewer-friendly demo that explains the Arc Receipts flow without requiring local repo setup.
+5. Hosted reviewer and builder demo
+   - Publish a reviewer-friendly hosted demo and docs that clearly show simulated and Arc Testnet-backed flows: invoice, memo payment data, proof polling, receipt generation, signature verification, replay, and persistence mode.
 
 ## Reviewer Demo
 
